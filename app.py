@@ -50,9 +50,9 @@ try:
         except Exception:
             return _orig_retry(url, method=method, params=params, data=data, headers=headers, timeout=timeout, **kwargs)
     _ak_request.request_with_retry = _patched_request_with_retry
-    logger.info("已启用 curl_cffi TLS指纹补丁，绕过东方财富反爬")
+    print("[补丁] 已启用 curl_cffi TLS指纹补丁，绕过东方财富反爬")
 except ImportError:
-    logger.warning("curl_cffi 未安装，使用默认 requests（可能被东方财富拦截）")
+    print("[警告] curl_cffi 未安装，使用默认 requests（可能被东方财富拦截）")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
