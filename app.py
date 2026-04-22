@@ -37,6 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Python requests/curl_cffi 均被东方财富拦截，改用 subprocess + curl（命令行curl能正常访问）
 import subprocess as _subprocess
 import json as _json
+import urllib.parse as _urlparse
 try:
     import akshare.utils.request as _ak_request
     import akshare.utils.func as _ak_func
@@ -55,17 +56,24 @@ try:
             url = args[0] if args else kwargs.get('url', '')
             params = kwargs.get('params') or {}
             timeout = kwargs.get('timeout', 15)
-            # 构建 curl 命令（-G 表示用GET发送data-urlencode参数）
-            curl_cmd = ['curl', '-s', '-G', '-m', str(timeout),
-                        '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        '-H', 'Referer: https://www.eastmoney.com/']
-            for k, v in params.items():
-                curl_cmd.extend(['--data-urlencode', f'{k}={v}'])
-            curl_cmd.append(url)
+            # 手动构建带参数的URL
+            if params:
+                encoded = _urlparse.urlencode({k: v for k, v in params.items() if v is not None})
+                url = f"{url}?{encoded}"
+            # 用 curl 直接 GET
+            curl_cmd = [
+                'curl', '-s', '-m', str(timeout),
+                '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                '-H', 'Referer: https://www.eastmoney.com/',
+                '-H', 'Accept: */*',
+                url,
+            ]
             result = _subprocess.run(curl_cmd, capture_output=True, text=True, timeout=timeout + 5)
             if result.returncode == 0 and result.stdout.strip():
                 return _CurlResponse(result.stdout)
-            raise ConnectionError(f"curl failed: {result.stderr[:200]}")
+            raise ConnectionError(f"curl failed with stderr: {result.stderr[:200]}")
+        except _subprocess.TimeoutExpired:
+            raise ConnectionError("curl timeout")
         except Exception:
             return _orig_retry(*args, **kwargs)
     _ak_request.request_with_retry = _curl_request_with_retry
