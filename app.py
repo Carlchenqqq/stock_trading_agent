@@ -13,6 +13,13 @@ from datetime import datetime
 from flask import Flask, jsonify, render_template
 import traceback
 
+# 加载 .env 文件（PythonAnywhere部署时使用）
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # 将项目根目录加入路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
