@@ -3,13 +3,19 @@
 """
 股票交易Agent Web仪表盘 - Flask后端
 =====================================
-提供API接口，供前端页面调用。
+安全特性：
+- HMAC-SHA256 签名 Token 认证（非裸用户ID）
+- 异常信息脱敏，不向客户端泄露内部实现细节
+- 参数化查询防 SQL 注入（db.py 层面）
 """
 
 import os
 import sys
 import json
 import time
+import hmac
+import hashlib
+import secrets
 import logging
 import threading
 from functools import wraps
@@ -31,7 +37,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'stock-agent-secret-key-2024')
+# 安全：使用环境变量或随机生成的密钥，不再有硬编码回退值
+SECRET_KEY = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.secret_key = SECRET_KEY
 
 # ==================== 数据库初始化 ====================
 import db as _db
@@ -56,17 +64,69 @@ def set_cached(key, data):
         _cache[key] = {'data': data, 'time': time.time()}
 
 
-# ==================== 登录辅助 ====================
-def get_current_user():
-    """从请求头获取当前用户（简单token方案）"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
+# ==================== HMAC Token 认证 ====================
+
+def generate_token(user_id):
+    """
+    生成 HMAC-SHA256 签名 Token
+
+    Token 格式: {user_id}.{timestamp}.{signature}
+    - user_id: 用户ID
+    - timestamp: 签发时间戳（用于过期检查）
+    - signature: HMAC-SHA256(user_id.timestamp, SECRET_KEY)
+
+    有效期: 7天
+    """
+    ts = str(int(time.time()))
+    msg = f"{user_id}.{ts}"
+    sig = hmac.new(SECRET_KEY.encode(), msg.encode(), hashlib.sha256).hexdigest()[:32]
+    return f"{msg}.{sig}"
+
+
+def verify_token(token_str):
+    """
+    验证 HMAC Token，返回 user_id 或 None
+
+    安全检查:
+    1. Token 格式正确（3段，用.分隔）
+    2. HMAC 签名验证通过
+    3. 未过期（7天有效期）
+    """
+    if not token_str:
         return None
     try:
-        user_id = int(token)
-        return _db.get_user(user_id)
+        parts = token_str.split('.')
+        if len(parts) != 3:
+            return None
+        user_id_str, ts_str, sig = parts
+
+        # 验证签名
+        msg = f"{user_id_str}.{ts_str}"
+        expected_sig = hmac.new(SECRET_KEY.encode(), msg.encode(), hashlib.sha256).hexdigest()[:32]
+        if not hmac.compare_digest(sig, expected_sig):
+            logger.warning(f"无效的 Token 签名 (user_id={user_id_str})")
+            return None
+
+        # 验证过期（7天）
+        ts = int(ts_str)
+        if (time.time() - ts) > 7 * 24 * 3600:
+            logger.info(f"Token 已过期 (user_id={user_id_str}, issued={ts})")
+            return None
+
+        return int(user_id_str)
     except (ValueError, TypeError):
         return None
+
+
+def get_current_user():
+    """从请求头获取当前用户（HMAC Token 方案）"""
+    token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+    if not token:
+        return None
+    user_id = verify_token(token)
+    if not user_id:
+        return None
+    return _db.get_user(user_id)
 
 
 def login_required(f):
@@ -91,25 +151,38 @@ def admin_required(f):
     return decorated
 
 
-# ==================== 延迟初始化 ====================
+# ==================== 延迟初始化（线程安全） ====================
 _agent = None
 _ai_analyzer = None
+_agent_lock = threading.Lock()
+_ai_lock = threading.Lock()
 
 
 def get_agent():
     global _agent
     if _agent is None:
-        from hybrid_agent import TradingAgent
-        _agent = TradingAgent()
+        with _agent_lock:
+            if _agent is None:
+                from hybrid_agent import TradingAgent
+                _agent = TradingAgent()
     return _agent
 
 
 def get_ai_analyzer():
     global _ai_analyzer
     if _ai_analyzer is None:
-        from ai_analyzer import AIAnalyzer
-        _ai_analyzer = AIAnalyzer()
+        with _ai_lock:
+            if _ai_analyzer is None:
+                from ai_analyzer import AIAnalyzer
+                _ai_analyzer = AIAnalyzer()
     return _ai_analyzer
+
+
+# ==================== 安全辅助 ====================
+
+def safe_error(message="操作失败，请稍后重试"):
+    """返回脱敏的错误信息，不泄露内部细节"""
+    return jsonify({"success": False, "error": message})
 
 
 # ==================== 页面路由 ====================
@@ -132,9 +205,12 @@ def api_register():
         user = _db.create_user(username, password)
         if not user:
             return jsonify({"success": False, "error": "用户名已存在"})
-        return jsonify({"success": True, "data": {"id": user['id'], "username": user['username']}})
+        # 生成签名 Token
+        token = generate_token(user['id'])
+        return jsonify({"success": True, "data": {"id": user['id'], "username": user['username'], "token": token}})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"注册失败: {e}")
+        return safe_error("注册失败，请稍后重试")
 
 
 @app.route('/api/login', methods=['POST'])
@@ -146,9 +222,12 @@ def api_login():
         user = _db.authenticate(username, password)
         if not user:
             return jsonify({"success": False, "error": "用户名或密码错误"})
-        return jsonify({"success": True, "data": {"id": user['id'], "username": user['username'], "role": user['role']}})
+        # 生成签名 Token
+        token = generate_token(user['id'])
+        return jsonify({"success": True, "data": {"id": user['id'], "username": user['username'], "role": user['role'], "token": token}})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"登录失败: {e}")
+        return safe_error("登录失败，请稍后重试")
 
 
 @app.route('/api/user/info')
@@ -168,7 +247,6 @@ def api_watchlist():
         stocks = _db.get_watchlist(user['id'])
         if not stocks:
             return jsonify({"success": True, "data": []})
-        # 获取实时行情
         agent = get_agent()
         results = []
         for s in stocks:
@@ -182,7 +260,7 @@ def api_watchlist():
         return jsonify({"success": True, "data": results})
     except Exception as e:
         logger.error(f"自选股分析失败: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        return safe_error("自选股数据加载失败")
 
 
 @app.route('/api/watchlist/add', methods=['POST'])
@@ -198,7 +276,8 @@ def api_watchlist_add():
         _db.add_to_watchlist(user['id'], ts_code, name)
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"添加自选股失败: {e}")
+        return safe_error("添加失败")
 
 
 @app.route('/api/watchlist/remove', methods=['POST'])
@@ -213,7 +292,8 @@ def api_watchlist_remove():
         _db.remove_from_watchlist(user['id'], ts_code)
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"移除自选股失败: {e}")
+        return safe_error("移除失败")
 
 
 @app.route('/api/watchlist/search')
@@ -226,7 +306,6 @@ def api_watchlist_search():
             return jsonify({"success": False, "error": "请输入搜索关键词"})
         import akshare as ak
         df = ak.stock_zh_a_spot_em()
-        # 按代码或名称搜索
         mask = df['代码'].str.contains(keyword, na=False) | df['名称'].str.contains(keyword, na=False)
         matched = df[mask].head(20)
         results = []
@@ -234,7 +313,8 @@ def api_watchlist_search():
             results.append({"ts_code": row['代码'], "name": row['名称'], "price": float(row['最新价']) if row['最新价'] else 0})
         return jsonify({"success": True, "data": results})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"股票搜索失败: {e}")
+        return safe_error("搜索失败，请稍后重试")
 
 
 # ==================== 行业筛选API ====================
@@ -252,7 +332,7 @@ def api_industry():
         return jsonify({"success": True, "data": data})
     except Exception as e:
         logger.error(f"行业筛选失败: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        return safe_error("行业数据加载失败")
 
 
 # ==================== 市场数据API ====================
@@ -269,7 +349,7 @@ def api_market():
         return jsonify({"success": True, "data": sentiment})
     except Exception as e:
         logger.error(f"市场数据获取失败: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        return safe_error("市场数据加载失败")
 
 
 @app.route('/api/strategy')
@@ -284,7 +364,7 @@ def api_strategy():
         return jsonify({"success": True, "data": results})
     except Exception as e:
         logger.error(f"策略分析失败: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        return safe_error("策略数据加载失败")
 
 
 @app.route('/api/recommend')
@@ -314,7 +394,7 @@ def api_recommend():
         return jsonify({"success": True, "data": data})
     except Exception as e:
         logger.error(f"推荐分析失败: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        return safe_error("推荐数据加载失败")
 
 
 @app.route('/api/anomaly')
@@ -336,7 +416,7 @@ def api_anomaly():
         return jsonify({"success": True, "data": stocks})
     except Exception as e:
         logger.error(f"异动筛选失败: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        return safe_error("异动数据加载失败")
 
 
 @app.route('/api/rules')
@@ -361,7 +441,8 @@ def api_rules():
             rules["limit_price_examples"][board] = {"up": up, "down": down}
         return jsonify({"success": True, "data": rules})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"交易规则加载失败: {e}")
+        return safe_error("规则数据加载失败")
 
 
 # ==================== AI分析API ====================
@@ -372,7 +453,8 @@ def api_ai_status():
         ai = get_ai_analyzer()
         return jsonify({"success": True, "data": ai.get_status()})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"AI状态获取失败: {e}")
+        return safe_error("AI状态获取失败")
 
 
 @app.route('/api/ai/market')
@@ -388,7 +470,8 @@ def api_ai_market():
         _db.log_ai_usage(user['id'], 'market')
         return jsonify({"success": True, "data": {"analysis": analysis}})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"AI市场分析失败: {e}")
+        return safe_error("AI分析失败，请稍后重试")
 
 
 @app.route('/api/ai/stock/<ts_code>')
@@ -404,7 +487,8 @@ def api_ai_stock(ts_code):
         _db.log_ai_usage(user['id'], f'stock_{ts_code}')
         return jsonify({"success": True, "data": {"analysis": analysis}})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"AI个股分析失败: {e}")
+        return safe_error("AI分析失败，请稍后重试")
 
 
 @app.route('/api/ai/strategy')
@@ -420,7 +504,8 @@ def api_ai_strategy():
         _db.log_ai_usage(user['id'], 'strategy')
         return jsonify({"success": True, "data": {"analysis": analysis}})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"AI策略分析失败: {e}")
+        return safe_error("AI分析失败，请稍后重试")
 
 
 @app.route('/api/ai/recommend')
@@ -440,7 +525,8 @@ def api_ai_recommend():
         _db.log_ai_usage(user['id'], 'recommend')
         return jsonify({"success": True, "data": {"analysis": analysis}})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"AI推荐分析失败: {e}")
+        return safe_error("AI分析失败，请稍后重试")
 
 
 # ==================== 管理员API ====================
@@ -450,12 +536,12 @@ def api_ai_recommend():
 def api_admin_users():
     try:
         users = _db.get_all_users()
-        # 隐藏密码
         for u in users:
             u.pop('password_hash', None)
         return jsonify({"success": True, "data": users})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"管理员查询用户失败: {e}")
+        return safe_error("查询失败")
 
 
 @app.route('/api/admin/ai-usage')
@@ -477,14 +563,16 @@ def api_admin_ai_usage():
         conn.close()
         return jsonify({"success": True, "data": rows})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"管理员查询AI用量失败: {e}")
+        return safe_error("查询失败")
 
 
-# 全局异常处理
+# ==================== 全局异常处理（脱敏） ====================
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     logger.error(f"未捕获异常: {e}\n{traceback.format_exc()}")
-    return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": False, "error": "服务器内部错误，请稍后重试"}), 500
 
 
 if __name__ == '__main__':

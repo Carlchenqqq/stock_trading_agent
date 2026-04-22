@@ -906,11 +906,11 @@ tr:hover td { background: rgba(0,0,0,0.02); }
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const API = '';
-let currentUser = null;  // { id, username, role }
+let currentUser = null;  // { id, username, role, token }
 
 // ========== Auth Functions ==========
 function getToken() {
-  return currentUser ? String(currentUser.id) : '';
+  return currentUser && currentUser.token ? currentUser.token : '';
 }
 
 function showLogin() {
@@ -1584,8 +1584,24 @@ async function loadAdminAIUsage() {
     const saved = localStorage.getItem('stock_user');
     if (saved) {
       currentUser = JSON.parse(saved);
-      if (currentUser && currentUser.id) {
-        onLoginSuccess();
+      if (currentUser && currentUser.id && currentUser.token) {
+        // Verify token is still valid by calling /api/user/info
+        fetch(API + '/api/user/info', {
+          headers: { 'Authorization': 'Bearer ' + currentUser.token },
+        }).then(resp => {
+          if (resp.ok) {
+            onLoginSuccess();
+          } else {
+            // Token expired or invalid, clear and show login
+            currentUser = null;
+            localStorage.removeItem('stock_user');
+            $('#authOverlay').style.display = 'flex';
+          }
+        }).catch(() => {
+          // Network error, still try to show the UI with cached data
+          onLoginSuccess();
+        });
+        loadMarket();
         return;
       }
     }
