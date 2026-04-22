@@ -623,22 +623,26 @@ async function loadMarket() {
     const { success, data, error } = await fetchJSON('/api/market');
     if (!success) throw new Error(error);
     const stats = $('#marketStats');
-    const idx = data.sh_index || 0;
-    const chg = data.sh_change || 0;
-    const cls = chg >= 0 ? 'up' : 'down';
+    const sh = data.sh_index || 0, shC = data.sh_change || 0, shCls = shC >= 0 ? 'up' : 'down';
+    const sz = data.sz_index || 0, szC = data.sz_change || 0, szCls = szC >= 0 ? 'up' : 'down';
+    const cyb = data.cyb_index || 0, cybC = data.cyb_change || 0, cybCls = cybC >= 0 ? 'up' : 'down';
     const overview = data.overview || {};
     stats.innerHTML = `
       <div class="stat-card">
-        <div class="stat-value ${cls}">${fmt(idx,0)}</div>
-        <div class="stat-label">上证指数 ${chg>=0?'+':''}${fmt(chg)}%</div>
+        <div class="stat-value ${shCls}">${fmt(sh,0)}</div>
+        <div class="stat-label">上证指数 ${shC>=0?'+':''}${fmt(shC)}%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value ${szCls}">${fmt(sz,0)}</div>
+        <div class="stat-label">深证成指 ${szC>=0?'+':''}${fmt(szC)}%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value ${cybCls}">${fmt(cyb,0)}</div>
+        <div class="stat-label">创业板指 ${cybC>=0?'+':''}${fmt(cybC)}%</div>
       </div>
       <div class="stat-card">
         <div class="stat-value up">${data.limit_up || 0}</div>
-        <div class="stat-label">涨停家数</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value down">${data.limit_down || 0}</div>
-        <div class="stat-label">跌停家数</div>
+        <div class="stat-label">涨停 / 跌停 ${data.limit_down || 0}</div>
       </div>
       <div class="stat-card">
         <div class="stat-value neutral">${(overview.up_count||0)+(overview.down_count||0)||'--'}</div>

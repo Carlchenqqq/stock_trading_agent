@@ -109,20 +109,32 @@ class TradingAgent:
         """分析市场情绪"""
         limit_up, limit_down = self.data_adapter.get_limit_list()
         overview = self._get_market_overview()
-        sh_index = self.data_adapter.get_index_daily("000001.SH", limit=1)
 
-        if sh_index:
-            close = float(sh_index[0].get("close", 0))
-            pre = float(sh_index[0].get("pre_close", 0))
-            chg = ((close - pre) / pre * 100) if pre else 0
-            return {
-                "limit_up": limit_up, "limit_down": limit_down,
-                "sh_index": close, "sh_change": chg, "overview": overview,
-            }
-        return {
+        # 获取三大指数
+        indices = {}
+        for code, name in [("000001.SH", "sh"), ("399001.SZ", "sz"), ("399006.SZ", "cyb")]:
+            data = self.data_adapter.get_index_daily(code, limit=1)
+            if data:
+                close = float(data[0].get("close", 0))
+                pre = float(data[0].get("pre_close", 0))
+                chg = ((close - pre) / pre * 100) if pre else 0
+                indices[name] = {"close": close, "change": chg}
+
+        result = {
             "limit_up": limit_up, "limit_down": limit_down,
-            "sh_index": None, "sh_change": None, "index_error": True, "overview": overview,
+            "sh_index": indices.get("sh", {}).get("close"),
+            "sh_change": indices.get("sh", {}).get("change"),
+            "sz_index": indices.get("sz", {}).get("close"),
+            "sz_change": indices.get("sz", {}).get("change"),
+            "cyb_index": indices.get("cyb", {}).get("close"),
+            "cyb_change": indices.get("cyb", {}).get("change"),
+            "overview": overview,
         }
+
+        if not indices:
+            result["index_error"] = True
+
+        return result
 
     # ==================== 报告输出 ====================
 

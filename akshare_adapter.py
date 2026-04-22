@@ -188,8 +188,10 @@ class AKShareAdapter:
 
             if "SH" in ts_code or ts_code == "000001":
                 df = ak.index_zh_a_hist(symbol="000001", period="daily", start_date="20240101")
-            elif "SZ" in ts_code or ts_code == "399001":
+            elif ts_code == "399001.SZ" or ts_code == "399001":
                 df = ak.index_zh_a_hist(symbol="399001", period="daily", start_date="20240101")
+            elif ts_code == "399006.SZ" or ts_code == "399006":
+                df = ak.index_zh_a_hist(symbol="399006", period="daily", start_date="20240101")
             else:
                 return []
 
