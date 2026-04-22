@@ -38,6 +38,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from curl_cffi import requests as cffi_requests
     import akshare.utils.request as _ak_request
+    import akshare.utils.func as _ak_func
     _orig_retry = _ak_request.request_with_retry
     def _patched_request_with_retry(url, method="GET", params=None, data=None, headers=None, timeout=15, **kwargs):
         try:
@@ -49,7 +50,9 @@ try:
             return r
         except Exception:
             return _orig_retry(url, method=method, params=params, data=data, headers=headers, timeout=timeout, **kwargs)
+    # 必须同时 patch 两个模块的引用（func.py 在 import 时创建了本地副本）
     _ak_request.request_with_retry = _patched_request_with_retry
+    _ak_func.request_with_retry = _patched_request_with_retry
     print("[补丁] 已启用 curl_cffi TLS指纹补丁，绕过东方财富反爬")
 except ImportError:
     print("[警告] curl_cffi 未安装，使用默认 requests（可能被东方财富拦截）")
