@@ -391,13 +391,13 @@ def api_watchlist_remove():
 @app.route('/api/watchlist/search')
 @login_required
 def api_watchlist_search():
-    """搜索股票（用于添加自选股）"""
+    """搜索股票（用于添加自选股，新浪数据源）"""
     try:
         keyword = request.args.get('q', '').strip()
         if not keyword:
             return jsonify({"success": False, "error": "请输入搜索关键词"})
         import akshare as ak
-        df = ak.stock_zh_a_spot_em()
+        df = ak.stock_zh_a_spot()
         mask = df['代码'].str.contains(keyword, na=False) | df['名称'].str.contains(keyword, na=False)
         matched = df[mask].head(20)
         results = []
