@@ -1,0 +1,251 @@
+/* ============================================
+   策略分析页 - 页面样式
+   ============================================ */
+
+/* ---------- 骨架屏容器 ---------- */
+.skeleton-wrap {
+  padding: var(--spacing-md);
+}
+
+/* ---------- 策略卡片 ---------- */
+.strategy-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.strategy-header {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-lg);
+}
+
+/* ---------- 策略图标 ---------- */
+.strategy-icon-wrap {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.strategy-icon {
+  font-size: 36rpx;
+}
+
+/* ---------- 策略信息 ---------- */
+.strategy-info {
+  min-width: 0;
+}
+
+.strategy-name {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-right: var(--spacing-sm);
+}
+
+.strategy-desc {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  margin-top: 4rpx;
+  display: block;
+}
+
+/* ---------- 数量徽标（小尺寸） ---------- */
+.badge-sm {
+  min-width: 28rpx;
+  height: 28rpx;
+  padding: 0 6rpx;
+  font-size: 18rpx;
+  border-radius: var(--radius-round);
+  background-color: var(--color-blue);
+  color: var(--color-text-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+/* ---------- 展开箭头 ---------- */
+.expand-arrow {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: var(--spacing-sm);
+  transition: transform 0.2s ease;
+}
+
+.expand-arrow.expanded {
+  transform: rotate(90deg);
+}
+
+.arrow-text {
+  font-size: 40rpx;
+  color: var(--color-text-muted);
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* ---------- 信号表格 ---------- */
+.strategy-signals {
+  border-top: 1rpx solid var(--color-border);
+  padding: 0;
+}
+
+/* 表头 */
+.signal-table-header {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--color-bg-secondary);
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* 信号行 */
+.signal-row {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1rpx solid var(--color-border);
+  transition: background-color 0.2s ease;
+}
+
+.signal-row:last-child {
+  border-bottom: none;
+}
+
+.signal-row:active {
+  background-color: var(--color-card-hover);
+}
+
+/* 列定义 */
+.col-name {
+  flex: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.col-price {
+  flex: 1.2;
+  text-align: right;
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.col-change {
+  flex: 1.2;
+  text-align: right;
+  font-size: var(--font-sm);
+}
+
+.col-score {
+  flex: 1;
+  text-align: center;
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.col-action {
+  flex: 1.5;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+}
+
+/* 股票名称和代码 */
+.signal-stock-name {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-stock-code {
+  font-size: 18rpx;
+  color: var(--color-text-muted);
+  margin-top: 2rpx;
+}
+
+/* ---------- 无信号提示 ---------- */
+.no-signals {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg) 0;
+}
+
+.no-signals-text {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---------- AI 按钮容器 ---------- */
+.ai-btn-wrap {
+  padding: var(--spacing-lg);
+}
+
+.ai-btn-label {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+/* ---------- 空状态子文字 ---------- */
+.empty-sub-text {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-sm);
+}
+
+/* ---------- 刷新提示 ---------- */
+.refresh-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) 0;
+}
+
+.refresh-tip-text {
+  font-size: var(--font-sm);
+  color: var(--color-cyan);
+}
+
+/* ---------- 响应式适配 ---------- */
+@media (max-width: 375px) {
+  .strategy-header {
+    padding: var(--spacing-md);
+  }
+
+  .strategy-icon-wrap {
+    width: 52rpx;
+    height: 52rpx;
+    margin-right: var(--spacing-sm);
+  }
+
+  .strategy-icon {
+    font-size: 28rpx;
+  }
+
+  .strategy-name {
+    font-size: var(--font-md);
+  }
+
+  .col-action {
+    flex: 1.8;
+  }
+
+  .signal-stock-name {
+    font-size: var(--font-xs);
+  }
+}

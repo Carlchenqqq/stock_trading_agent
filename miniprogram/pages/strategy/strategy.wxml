@@ -1,0 +1,107 @@
+<view class="page-container">
+  <!-- 下拉刷新提示 -->
+  <view class="refresh-tip" wx:if="{{refreshing}}">
+    <text class="refresh-tip-text">正在刷新...</text>
+  </view>
+
+  <!-- 骨架屏加载状态 -->
+  <view class="skeleton-wrap" wx:if="{{loading}}">
+    <view class="card m-md" wx:for="{{[1,2,3,4]}}" wx:key="*this">
+      <view class="flex-row items-center mb-md">
+        <view class="skeleton" style="width: 64rpx; height: 64rpx; border-radius: var(--radius-md); margin-right: 20rpx;"></view>
+        <view class="flex-1">
+          <view class="skeleton skeleton-text" style="width: 50%; height: 32rpx;"></view>
+          <view class="skeleton skeleton-text" style="width: 70%; height: 22rpx; margin-top: 8rpx;"></view>
+        </view>
+      </view>
+      <view class="skeleton skeleton-text" style="width: 100%; height: 12rpx; margin-bottom: 16rpx;"></view>
+      <view class="skeleton skeleton-text" style="width: 100%; height: 12rpx; margin-bottom: 16rpx;"></view>
+      <view class="skeleton skeleton-text" style="width: 80%; height: 12rpx;"></view>
+    </view>
+  </view>
+
+  <!-- 主内容 -->
+  <view class="page-content" wx:if="{{!loading}}">
+    <!-- 策略卡片列表 -->
+    <view wx:if="{{!isEmpty}}">
+      <view class="strategy-card card m-md"
+        wx:for="{{strategyList}}"
+        wx:key="id"
+        bindtap="onToggleStrategy"
+        data-index="{{index}}">
+        <!-- 策略头部 -->
+        <view class="strategy-header">
+          <view class="strategy-icon-wrap">
+            <text class="strategy-icon">{{item.icon}}</text>
+          </view>
+          <view class="strategy-info flex-1">
+            <view class="flex-row items-center">
+              <text class="strategy-name">{{item.name}}</text>
+              <view class="badge badge-sm">{{item.signalCount}}</view>
+            </view>
+            <text class="strategy-desc">{{item.desc}}</text>
+          </view>
+          <view class="expand-arrow {{item.expanded ? 'expanded' : ''}}">
+            <text class="arrow-text">›</text>
+          </view>
+        </view>
+
+        <!-- 信号表格（展开时显示） -->
+        <view class="strategy-signals" wx:if="{{item.expanded}}">
+          <!-- 表头 -->
+          <view class="signal-table-header">
+            <view class="col-name">股票</view>
+            <view class="col-price">价格</view>
+            <view class="col-change">涨跌幅</view>
+            <view class="col-score">评分</view>
+            <view class="col-action">信号</view>
+          </view>
+
+          <!-- 信号行 -->
+          <view class="signal-row"
+            wx:for="{{item.signals}}"
+            wx:for-item="signal"
+            wx:key="code"
+            bindtap="onStockTap"
+            data-code="{{signal.code}}">
+            <view class="col-name">
+              <text class="signal-stock-name">{{signal.name}}</text>
+              <text class="signal-stock-code">{{signal.code}}</text>
+            </view>
+            <view class="col-price">
+              <text class="{{signal.changePctClass}}">{{signal.priceText}}</text>
+            </view>
+            <view class="col-change">
+              <text class="{{signal.changePctClass}}">{{signal.changePctText}}</text>
+            </view>
+            <view class="col-score">
+              <text class="{{signal.scoreClass}}">{{signal.scoreText}}</text>
+            </view>
+            <view class="col-action">
+              <text class="tag {{signal.actionClass}}">{{signal.actionText}}</text>
+            </view>
+          </view>
+
+          <!-- 无信号提示 -->
+          <view class="no-signals" wx:if="{{item.signals.length === 0}}">
+            <text class="no-signals-text">暂无信号</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{isEmpty}}">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无策略数据</text>
+      <text class="empty-sub-text">策略分析数据更新中，请稍后再试</text>
+    </view>
+
+    <!-- AI 策略分析按钮 -->
+    <view class="ai-btn-wrap" wx:if="{{!isEmpty}}">
+      <view class="btn btn-primary btn-block btn-lg" bindtap="goToAIStrategy">
+        <text class="ai-btn-label">AI 策略综合分析</text>
+      </view>
+    </view>
+  </view>
+</view>

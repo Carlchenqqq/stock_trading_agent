@@ -1,0 +1,263 @@
+/* ============================================
+   股票推荐页 - 页面样式
+   ============================================ */
+
+/* ---------- 骨架屏容器 ---------- */
+.skeleton-wrap {
+  padding: var(--spacing-md);
+}
+
+/* ---------- 市场情绪卡片 ---------- */
+.sentiment-card {
+  display: flex;
+  align-items: center;
+}
+
+.sentiment-icon {
+  font-size: 48rpx;
+  margin-right: var(--spacing-sm);
+}
+
+.sentiment-label {
+  font-size: var(--font-md);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+/* ---------- 预警信息列表 ---------- */
+.warning-list {
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.warning-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-orange-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xs);
+  border-left: 6rpx solid var(--color-orange);
+}
+
+.warning-icon {
+  font-size: var(--font-md);
+  margin-right: var(--spacing-sm);
+}
+
+.warning-text {
+  font-size: var(--font-sm);
+  color: var(--color-orange);
+  line-height: 1.5;
+}
+
+/* ---------- 推荐列表项 ---------- */
+.recommend-item {
+  overflow: hidden;
+}
+
+.recommend-header {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+}
+
+/* ---------- 排名徽章 ---------- */
+.rank-badge {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.rank-text {
+  font-size: var(--font-sm);
+  font-weight: 700;
+}
+
+.rank-gold {
+  background: linear-gradient(135deg, #ffd740, #ffab00);
+  color: #1a1a1a;
+  box-shadow: 0 4rpx 12rpx rgba(255, 215, 64, 0.4);
+}
+
+.rank-silver {
+  background: linear-gradient(135deg, #cfd8dc, #90a4ae);
+  color: #1a1a1a;
+  box-shadow: 0 4rpx 12rpx rgba(207, 216, 220, 0.3);
+}
+
+.rank-bronze {
+  background: linear-gradient(135deg, #ff9100, #e65100);
+  color: #1a1a1a;
+  box-shadow: 0 4rpx 12rpx rgba(255, 145, 0, 0.3);
+}
+
+.rank-normal {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1rpx solid var(--color-border);
+}
+
+/* ---------- 股票信息 ---------- */
+.stock-info-wrap {
+  min-width: 0;
+}
+
+.stock-name-text {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-right: var(--spacing-sm);
+}
+
+.stock-code-text {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  margin-top: 4rpx;
+  display: block;
+}
+
+/* ---------- 信号标签 ---------- */
+.signal-tags {
+  display: inline-flex;
+  gap: 8rpx;
+  flex-wrap: wrap;
+}
+
+.tag-xs {
+  padding: 2rpx 12rpx;
+  font-size: 18rpx;
+}
+
+/* ---------- 价格区域 ---------- */
+.price-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.price-value {
+  font-size: var(--font-lg);
+  font-weight: 700;
+}
+
+.change-value {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  margin-top: 4rpx;
+}
+
+/* ---------- 评分区域 ---------- */
+.score-section {
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.score-label {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.score-value {
+  font-size: var(--font-lg);
+  font-weight: 700;
+}
+
+/* 评分进度条 - 青色 */
+.progress-cyan .progress-fill {
+  background: linear-gradient(90deg, var(--color-cyan), var(--color-blue));
+}
+
+/* ---------- 子评分 ---------- */
+.sub-scores {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: var(--spacing-md) var(--spacing-lg);
+  padding-top: var(--spacing-sm);
+  border-top: 1rpx solid var(--color-border);
+}
+
+.sub-score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.sub-score-label {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 4rpx;
+}
+
+.sub-score-value {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.sub-score-divider {
+  width: 1rpx;
+  height: 40rpx;
+  background-color: var(--color-border);
+}
+
+/* ---------- AI 按钮容器 ---------- */
+.ai-btn-wrap {
+  padding: var(--spacing-lg);
+}
+
+.ai-btn-label {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+/* ---------- 空状态子文字 ---------- */
+.empty-sub-text {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-sm);
+}
+
+/* ---------- 刷新提示 ---------- */
+.refresh-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) 0;
+}
+
+.refresh-tip-text {
+  font-size: var(--font-sm);
+  color: var(--color-cyan);
+}
+
+/* ---------- 响应式适配 ---------- */
+@media (max-width: 375px) {
+  .recommend-header {
+    padding: var(--spacing-md);
+  }
+
+  .rank-badge {
+    width: 48rpx;
+    height: 48rpx;
+    margin-right: var(--spacing-sm);
+  }
+
+  .stock-name-text {
+    font-size: var(--font-md);
+  }
+
+  .price-value {
+    font-size: var(--font-md);
+  }
+}

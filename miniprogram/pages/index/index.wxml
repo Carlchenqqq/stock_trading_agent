@@ -1,0 +1,102 @@
+<view class="page-container">
+  <!-- 市场统计卡片 2x2 网格 -->
+  <view class="stat-grid">
+    <!-- 上证指数 -->
+    <view class="stat-card">
+      <text class="stat-label">上证指数</text>
+      <text class="stat-value">{{marketLoading ? '--' : shIndex.value}}</text>
+      <text class="stat-change {{shIndexClass}}">
+        {{marketLoading ? '--' : shIndex.changePct}}
+      </text>
+    </view>
+
+    <!-- 涨停家数 -->
+    <view class="stat-card">
+      <text class="stat-label">涨停家数</text>
+      <text class="stat-value text-green">
+        {{marketLoading ? '--' : limitUp}}
+      </text>
+      <text class="stat-change text-muted">今日涨停</text>
+    </view>
+
+    <!-- 跌停家数 -->
+    <view class="stat-card">
+      <text class="stat-label">跌停家数</text>
+      <text class="stat-value text-red">
+        {{marketLoading ? '--' : limitDown}}
+      </text>
+      <text class="stat-change text-muted">今日跌停</text>
+    </view>
+
+    <!-- 涨跌比 -->
+    <view class="stat-card">
+      <text class="stat-label">涨跌比</text>
+      <text class="stat-value">
+        {{marketLoading ? '--' : advanceDeclineRatio}}
+      </text>
+      <text class="stat-change text-muted">上涨:下跌</text>
+    </view>
+  </view>
+
+  <!-- AI 市场分析 -->
+  <view class="section-title">
+    <text class="title-text">AI 市场分析</text>
+    <text class="title-more" bindtap="goToAI">查看详情 ></text>
+  </view>
+
+  <view class="ai-card card">
+    <view class="ai-card-header">
+      <view class="ai-icon-wrap">
+        <text class="ai-icon-text">AI</text>
+      </view>
+      <text class="ai-card-title">智能分析摘要</text>
+    </view>
+    <view class="ai-card-body" wx:if="{{!aiLoading}}">
+      <text class="ai-analysis-text">{{aiAnalysis}}</text>
+    </view>
+    <view class="ai-card-body" wx:else>
+      <view class="skeleton skeleton-text" style="width: 90%;"></view>
+      <view class="skeleton skeleton-text" style="width: 75%;"></view>
+      <view class="skeleton skeleton-text" style="width: 85%;"></view>
+    </view>
+    <view class="ai-card-footer" bindtap="goToAI">
+      <text class="ai-more-text">查看完整分析</text>
+      <text class="ai-arrow">></text>
+    </view>
+  </view>
+
+  <!-- 快捷操作按钮 -->
+  <view class="section-title">
+    <text class="title-text">快捷功能</text>
+  </view>
+
+  <view class="action-grid">
+    <view class="action-btn" bindtap="goToStrategy">
+      <view class="action-icon-wrap strategy-icon">
+        <text class="action-icon-text">策</text>
+      </view>
+      <text class="action-label">策略分析</text>
+    </view>
+
+    <view class="action-btn" bindtap="goToRecommend">
+      <view class="action-icon-wrap recommend-icon">
+        <text class="action-icon-text">荐</text>
+      </view>
+      <text class="action-label">股票推荐</text>
+    </view>
+
+    <view class="action-btn" bindtap="goToRules">
+      <view class="action-icon-wrap rules-icon">
+        <text class="action-icon-text">规</text>
+      </view>
+      <text class="action-label">交易规则</text>
+    </view>
+
+    <view class="action-btn" bindtap="goToAI">
+      <view class="action-icon-wrap ai-icon-action">
+        <text class="action-icon-text">AI</text>
+      </view>
+      <text class="action-label">AI分析</text>
+    </view>
+  </view>
+</view>

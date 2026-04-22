@@ -1,0 +1,133 @@
+<view class="page-container">
+  <!-- 下拉刷新提示 -->
+  <view class="refresh-tip" wx:if="{{refreshing}}">
+    <text class="refresh-tip-text">正在刷新...</text>
+  </view>
+
+  <!-- 骨架屏加载状态 -->
+  <view class="skeleton-wrap" wx:if="{{loading}}">
+    <!-- 市场情绪骨架 -->
+    <view class="card m-md">
+      <view class="skeleton skeleton-text" style="width: 40%; height: 36rpx; margin-bottom: 20rpx;"></view>
+      <view class="skeleton skeleton-text" style="width: 60%; height: 24rpx;"></view>
+    </view>
+    <!-- 列表骨架 -->
+    <view class="card m-md" wx:for="{{[1,2,3,4,5]}}" wx:key="*this">
+      <view class="flex-row items-center mb-md">
+        <view class="skeleton" style="width: 56rpx; height: 56rpx; border-radius: 50%; margin-right: 20rpx;"></view>
+        <view class="flex-1">
+          <view class="skeleton skeleton-text" style="width: 50%; height: 28rpx;"></view>
+          <view class="skeleton skeleton-text" style="width: 30%; height: 22rpx; margin-top: 8rpx;"></view>
+        </view>
+        <view class="skeleton skeleton-text" style="width: 80rpx; height: 28rpx;"></view>
+      </view>
+      <view class="skeleton" style="width: 100%; height: 12rpx; margin-bottom: 16rpx;"></view>
+      <view class="flex-row">
+        <view class="skeleton skeleton-text" style="width: 30%; height: 22rpx; margin-right: 16rpx;"></view>
+        <view class="skeleton skeleton-text" style="width: 30%; height: 22rpx; margin-right: 16rpx;"></view>
+        <view class="skeleton skeleton-text" style="width: 30%; height: 22rpx;"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 主内容 -->
+  <view class="page-content" wx:if="{{!loading}}">
+    <!-- 市场情绪 -->
+    <view class="card m-md sentiment-card" wx:if="{{sentiment.label}}">
+      <view class="flex-row items-center">
+        <text class="sentiment-icon">📊</text>
+        <view class="flex-1 ml-sm">
+          <text class="sentiment-label">市场情绪</text>
+        </view>
+        <view class="tag {{sentiment.class}}">
+          <text>{{sentiment.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 预警信息 -->
+    <view class="warning-list" wx:if="{{warnings.length > 0}}">
+      <view class="warning-item" wx:for="{{warnings}}" wx:key="id">
+        <text class="warning-icon">⚠️</text>
+        <text class="warning-text">{{item.text}}</text>
+      </view>
+    </view>
+
+    <!-- 推荐列表 -->
+    <view wx:if="{{!isEmpty}}">
+      <view class="recommend-item card card-no-padding m-md"
+        wx:for="{{recommendList}}"
+        wx:key="code"
+        bindtap="onStockTap"
+        data-code="{{item.code}}">
+        <!-- 股票头部：排名 + 基本信息 -->
+        <view class="recommend-header">
+          <!-- 排名徽章 -->
+          <view class="rank-badge {{item.rankClass}}">
+            <text class="rank-text">#{{item.rank}}</text>
+          </view>
+
+          <!-- 股票信息 -->
+          <view class="stock-info-wrap flex-1">
+            <view class="flex-row items-center">
+              <text class="stock-name-text">{{item.name}}</text>
+              <view class="signal-tags">
+                <text class="tag tag-xs {{s.class}}" wx:for="{{item.signals}}" wx:for-item="s" wx:key="*this">{{s.text}}</text>
+              </view>
+            </view>
+            <text class="stock-code-text">{{item.code}}</text>
+          </view>
+
+          <!-- 价格和涨跌幅 -->
+          <view class="price-wrap">
+            <text class="price-value {{item.changePctClass}}">{{item.priceText}}</text>
+            <text class="change-value {{item.changePctClass}}">{{item.changePctText}}</text>
+          </view>
+        </view>
+
+        <!-- 总评分进度条 -->
+        <view class="score-section">
+          <view class="flex-between mb-xs">
+            <text class="score-label">综合评分</text>
+            <text class="score-value {{item.totalScoreClass}}">{{item.totalScoreText}}</text>
+          </view>
+          <view class="progress-bar progress-cyan">
+            <view class="progress-fill" style="width: {{item.totalScoreWidth}}%;"></view>
+          </view>
+        </view>
+
+        <!-- 子评分 -->
+        <view class="sub-scores">
+          <view class="sub-score-item">
+            <text class="sub-score-label">趋势</text>
+            <text class="sub-score-value">{{item.trendScoreText}}</text>
+          </view>
+          <view class="sub-score-divider"></view>
+          <view class="sub-score-item">
+            <text class="sub-score-label">动量</text>
+            <text class="sub-score-value">{{item.momentumScoreText}}</text>
+          </view>
+          <view class="sub-score-divider"></view>
+          <view class="sub-score-item">
+            <text class="sub-score-label">量能</text>
+            <text class="sub-score-value">{{item.volumeScoreText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{isEmpty}}">
+      <text class="empty-icon">🔍</text>
+      <text class="empty-text">暂无推荐数据</text>
+      <text class="empty-sub-text">市场数据更新中，请稍后再试</text>
+    </view>
+
+    <!-- AI 推荐按钮 -->
+    <view class="ai-btn-wrap" wx:if="{{!isEmpty}}">
+      <view class="btn btn-primary btn-block btn-lg" bindtap="goToAIRecommend">
+        <text class="ai-btn-label">AI 智能推荐分析</text>
+      </view>
+    </view>
+  </view>
+</view>

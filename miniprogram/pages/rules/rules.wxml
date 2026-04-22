@@ -1,0 +1,136 @@
+<view class="page-container">
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{loading}}">
+    <view class="skeleton skeleton-title" style="width: 50%; margin: 0 auto 24rpx;"></view>
+    <view class="skeleton skeleton-text" style="width: 80%; margin: 0 auto 16rpx;"></view>
+    <view class="skeleton skeleton-text" style="width: 60%; margin: 0 auto 16rpx;"></view>
+    <view class="skeleton skeleton-text" style="width: 70%; margin: 0 auto;"></view>
+  </view>
+
+  <!-- 规则内容 -->
+  <view class="rules-content" wx:if="{{!loading}}">
+
+    <!-- 涨跌停限制 -->
+    <view class="rule-section">
+      <view class="section-header">
+        <view class="section-icon-wrap limit-icon">
+          <text class="section-icon-text">%</text>
+        </view>
+        <text class="section-title-text">涨跌停限制</text>
+      </view>
+      <view class="rule-list">
+        <view class="rule-item" wx:for="{{boards}}" wx:key="name">
+          <text class="rule-item-label">{{item.name}}</text>
+          <view class="rule-item-value">
+            <text class="limit-up">+{{item.limitText}}</text>
+            <text class="limit-sep">/</text>
+            <text class="limit-down">-{{item.limitText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 交易时间 -->
+    <view class="rule-section">
+      <view class="section-header">
+        <view class="section-icon-wrap time-icon">
+          <text class="section-icon-text">T</text>
+        </view>
+        <text class="section-title-text">交易时间</text>
+      </view>
+      <view class="rule-list">
+        <view class="rule-item" wx:if="{{tradingTime.auction}}">
+          <text class="rule-item-label">集合竞价</text>
+          <text class="rule-item-value text-cyan">{{tradingTime.auction}}</text>
+        </view>
+        <view class="rule-item" wx:if="{{tradingTime.morning}}">
+          <text class="rule-item-label">上午连续竞价</text>
+          <text class="rule-item-value text-cyan">{{tradingTime.morning}}</text>
+        </view>
+        <view class="rule-item" wx:if="{{tradingTime.afternoon}}">
+          <text class="rule-item-label">下午连续竞价</text>
+          <text class="rule-item-value text-cyan">{{tradingTime.afternoon}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 交易费用 -->
+    <view class="rule-section">
+      <view class="section-header">
+        <view class="section-icon-wrap fee-icon">
+          <text class="section-icon-text">$</text>
+        </view>
+        <text class="section-title-text">交易费用</text>
+      </view>
+      <view class="rule-list">
+        <view class="rule-item" wx:if="{{fees.commission}}">
+          <text class="rule-item-label">佣金</text>
+          <text class="rule-item-value text-yellow">{{fees.commission}}</text>
+        </view>
+        <view class="rule-item" wx:if="{{fees.stamp_duty}}">
+          <text class="rule-item-label">印花税</text>
+          <text class="rule-item-value text-yellow">{{fees.stamp_duty}}</text>
+        </view>
+        <view class="rule-item" wx:if="{{fees.transfer_fee}}">
+          <text class="rule-item-label">过户费</text>
+          <text class="rule-item-value text-yellow">{{fees.transfer_fee}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 交易规则 -->
+    <view class="rule-section">
+      <view class="section-header">
+        <view class="section-icon-wrap rule-icon">
+          <text class="section-icon-text">R</text>
+        </view>
+        <text class="section-title-text">交易规则</text>
+      </view>
+      <view class="rule-list">
+        <view class="rule-item" wx:if="{{rules.min_lot_size}}">
+          <text class="rule-item-label">最小交易单位</text>
+          <text class="rule-item-value">{{rules.min_lot_size}}股/手</text>
+        </view>
+        <view class="rule-item" wx:if="{{rules.max_single_order}}">
+          <text class="rule-item-label">单笔最大委托</text>
+          <text class="rule-item-value">{{rules.max_single_order}}股</text>
+        </view>
+        <view class="rule-item" wx:if="{{rules.min_price_unit}}">
+          <text class="rule-item-label">最小价格变动</text>
+          <text class="rule-item-value">{{rules.min_price_unit}}元</text>
+        </view>
+        <view class="rule-item" wx:if="{{rules.settlement}}">
+          <text class="rule-item-label">交收制度</text>
+          <text class="rule-item-value text-cyan">{{rules.settlement}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 涨跌停价格示例 -->
+    <view class="rule-section" wx:if="{{limitPriceExamples.length > 0}}">
+      <view class="section-header">
+        <view class="section-icon-wrap example-icon">
+          <text class="section-icon-text">E</text>
+        </view>
+        <text class="section-title-text">涨跌停价格示例</text>
+      </view>
+      <view class="table-wrapper">
+        <view class="table">
+          <view class="table-header">
+            <view class="table-cell cell-board">板块</view>
+            <view class="table-cell cell-price">涨停价</view>
+            <view class="table-cell cell-price">跌停价</view>
+            <view class="table-cell cell-pct">幅度</view>
+          </view>
+          <view class="table-row" wx:for="{{limitPriceExamples}}" wx:key="board">
+            <view class="table-cell cell-board">{{item.board}}</view>
+            <view class="table-cell cell-price text-green">{{item.upPriceText}}</view>
+            <view class="table-cell cell-price text-red">{{item.downPriceText}}</view>
+            <view class="table-cell cell-pct text-cyan">{{item.pctText}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+  </view>
+</view>

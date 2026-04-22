@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>股票交易Agent - 智能仪表盘</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ========== CSS Variables ========== */
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: #1a2332;
+  --bg-card-hover: #1f2b3d;
+  --border: #2a3a4e;
+  --text-primary: #e8edf5;
+  --text-secondary: #8899aa;
+  --text-muted: #556677;
+  --accent-green: #00e676;
+  --accent-red: #ff5252;
+  --accent-blue: #448aff;
+  --accent-amber: #ffab00;
+  --accent-purple: #b388ff;
+  --accent-cyan: #18ffff;
+  --glow-green: rgba(0,230,118,0.15);
+  --glow-red: rgba(255,82,82,0.15);
+  --glow-blue: rgba(68,138,255,0.15);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Noto Sans SC', sans-serif;
+}
+
+/* ========== Reset & Base ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ========== Background Atmosphere ========== */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 20% 50%, rgba(68,138,255,0.06) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, rgba(0,230,118,0.04) 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 80%, rgba(179,136,255,0.04) 0%, transparent 50%);
+  animation: bgShift 20s ease-in-out infinite alternate;
+  z-index: 0;
+  pointer-events: none;
+}
+@keyframes bgShift { 0%{transform:translate(0,0)} 100%{transform:translate(-3%,-3%)} }
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ========== Header ========== */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,14,23,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 16px; color: #fff;
+}
+.header-title { font-weight: 700; font-size: 1.2rem; letter-spacing: -0.5px; }
+.header-subtitle { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.header-time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); }
+
+/* ========== Navigation Tabs ========== */
+.nav-tabs {
+  display: flex; gap: 4px;
+  padding: 12px 2rem 0;
+  background: var(--bg-primary);
+  position: relative; z-index: 10;
+}
+.nav-tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.nav-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.03); }
+.nav-tab.active {
+  color: var(--accent-cyan);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--bg-card);
+  margin-bottom: -1px;
+}
+.nav-tab i { font-size: 0.9rem; }
+
+/* ========== Main Content ========== */
+.main { padding: 1.5rem 2rem 3rem; position: relative; z-index: 1; }
+.tab-content { display: none; animation: fadeIn 0.3s ease; }
+.tab-content.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ========== Cards ========== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+}
+.card:hover { border-color: rgba(68,138,255,0.3); }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.card-title {
+  font-size: 1rem; font-weight: 700;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title i { color: var(--accent-blue); font-size: 0.9rem; }
+.card-badge {
+  font-size: 0.7rem; padding: 2px 8px;
+  border-radius: 20px; font-family: var(--font-mono);
+  background: var(--glow-blue); color: var(--accent-blue);
+}
+
+/* ========== Grid Layout ========== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+/* ========== Stat Cards ========== */
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  text-align: center;
+  transition: all 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.stat-value {
+  font-size: 1.8rem; font-weight: 900;
+  font-family: var(--font-mono);
+  line-height: 1.2;
+}
+.stat-value.up { color: var(--accent-green); }
+.stat-value.down { color: var(--accent-red); }
+.stat-value.neutral { color: var(--accent-blue); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+/* ========== Table ========== */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; padding: 10px 12px;
+  font-size: 0.75rem; font-weight: 500;
+  color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 10px 12px; font-size: 0.85rem;
+  border-bottom: 1px solid rgba(42,58,78,0.5);
+  font-family: var(--font-mono);
+}
+tr:hover td { background: rgba(255,255,255,0.02); }
+.text-up { color: var(--accent-green); }
+.text-down { color: var(--accent-red); }
+.text-muted { color: var(--text-muted); }
+
+/* ========== Score Bar ========== */
+.score-bar {
+  width: 100%; height: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px; overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.score-high { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }
+.score-mid { background: linear-gradient(90deg, var(--accent-amber), #ff6d00); }
+.score-low { background: linear-gradient(90deg, var(--accent-red), #ff1744); }
+
+/* ========== Tags/Chips ========== */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  margin: 2px;
+}
+.tag-green { background: var(--glow-green); color: var(--accent-green); }
+.tag-red { background: var(--glow-red); color: var(--accent-red); }
+.tag-blue { background: var(--glow-blue); color: var(--accent-blue); }
+.tag-amber { background: rgba(255,171,0,0.15); color: var(--accent-amber); }
+.tag-purple { background: rgba(179,136,255,0.15); color: var(--accent-purple); }
+
+/* ========== Buttons ========== */
+.btn {
+  padding: 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { border-color: var(--accent-blue); background: var(--bg-card-hover); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-blue), #2962ff);
+  border-color: transparent; color: #fff;
+}
+.btn-primary:hover { opacity: 0.9; border-color: transparent; }
+.btn-sm { padding: 5px 12px; font-size: 0.75rem; }
+
+/* ========== Loading ========== */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  padding: 3rem; color: var(--text-muted);
+}
+.spinner {
+  width: 24px; height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ========== AI Analysis Box ========== */
+.ai-box {
+  background: linear-gradient(135deg, rgba(68,138,255,0.08), rgba(179,136,255,0.08));
+  border: 1px solid rgba(68,138,255,0.2);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  margin-top: 1rem;
+  position: relative;
+}
+.ai-box::before {
+  content: 'AI';
+  position: absolute; top: -8px; left: 12px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  color: #fff; font-size: 0.65rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px;
+  font-family: var(--font-mono);
+}
+.ai-box-content {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+.ai-status {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 8px;
+}
+
+/* ========== Rules Grid ========== */
+.rule-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(42,58,78,0.3);
+}
+.rule-item:last-child { border-bottom: none; }
+.rule-name { color: var(--text-secondary); font-size: 0.85rem; }
+.rule-value { font-family: var(--font-mono); font-weight: 600; color: var(--accent-cyan); }
+
+/* ========== Responsive ========== */
+@media (max-width: 1024px) {
+  .grid-4 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 768px) {
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  .main { padding: 1rem; }
+  .header { padding: 0 1rem; }
+  .nav-tabs { padding: 8px 1rem 0; overflow-x: auto; }
+  .nav-tab { white-space: nowrap; font-size: 0.8rem; padding: 8px 14px; }
+}
+
+/* ========== Pulse animation for live data ========== */
+.pulse { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* ========== Rank badge ========== */
+.rank {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+  font-family: var(--font-mono);
+}
+.rank-1 { background: linear-gradient(135deg, #ffd700, #ff8f00); color: #000; }
+.rank-2 { background: linear-gradient(135deg, #c0c0c0, #9e9e9e); color: #000; }
+.rank-3 { background: linear-gradient(135deg, #cd7f32, #a0522d); color: #fff; }
+.rank-other { background: var(--bg-secondary); color: var(--text-muted); }
+
+/* ========== Section Divider ========== */
+.section-title {
+  font-size: 0.8rem; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 1.5rem 0 0.8rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- ========== Header ========== -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">A</div>
+    <div>
+      <div class="header-title">Stock Trading Agent</div>
+      <div class="header-subtitle">智能交易分析系统 v2.0</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="header-time" id="headerTime"></span>
+    <span class="pulse" style="width:8px;height:8px;background:var(--accent-green);border-radius:50%;display:inline-block;"></span>
+  </div>
+</header>
+
+<!-- ========== Navigation ========== -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" data-tab="market"><i class="fas fa-chart-line"></i> 市场概览</button>
+  <button class="nav-tab" data-tab="watchlist"><i class="fas fa-eye"></i> 自选股</button>
+  <button class="nav-tab" data-tab="recommend"><i class="fas fa-star"></i> 股票推荐</button>
+  <button class="nav-tab" data-tab="strategy"><i class="fas fa-chess"></i> 策略分析</button>
+  <button class="nav-tab" data-tab="anomaly"><i class="fas fa-bolt"></i> 异动筛选</button>
+  <button class="nav-tab" data-tab="rules"><i class="fas fa-gavel"></i> 交易规则</button>
+  <button class="nav-tab" data-tab="ai"><i class="fas fa-robot"></i> AI分析</button>
+</nav>
+
+<!-- ========== Main Content ========== -->
+<main class="main">
+
+  <!-- ===== Tab: 市场概览 ===== -->
+  <div class="tab-content active" id="tab-market">
+    <div class="grid-4" id="marketStats"></div>
+    <div class="card" style="margin-top:1rem;">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-brain"></i> AI市场解读</div>
+        <button class="btn btn-sm" onclick="loadAIMarket()"><i class="fas fa-sync-alt"></i> 刷新</button>
+      </div>
+      <div class="ai-box">
+        <div class="ai-box-content" id="aiMarketContent">点击"刷新"获取AI市场分析...</div>
+        <div class="ai-status" id="aiMarketStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tab: 自选股 ===== -->
+  <div class="tab-content" id="tab-watchlist">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-list"></i> 自选股列表</div>
+        <button class="btn btn-sm" onclick="loadWatchlist()"><i class="fas fa-sync-alt"></i> 刷新</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>代码</th><th>名称</th><th>当前价</th><th>涨跌幅</th><th>成交量</th><th>成交额</th><th>AI分析</th></tr>
+          </thead>
+          <tbody id="watchlistBody"><tr><td colspan="7" class="loading"><div class="spinner"></div>加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tab: 股票推荐 ===== -->
+  <div class="tab-content" id="tab-recommend">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-trophy"></i> 推荐排名</div>
+        <span class="card-badge" id="recBadge">--</span>
+      </div>
+      <div id="recWarnings"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>代码</th><th>名称</th><th>评分</th><th>趋势</th><th>动量</th><th>资金</th><th>当前价</th><th>涨跌幅</th><th>信号</th></tr>
+          </thead>
+          <tbody id="recBody"><tr><td colspan="10" class="loading"><div class="spinner"></div>加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-brain"></i> AI推荐解读</div>
+        <button class="btn btn-sm" onclick="loadAIRecommend()"><i class="fas fa-sync-alt"></i> 分析</button>
+      </div>
+      <div class="ai-box">
+        <div class="ai-box-content" id="aiRecContent">点击"分析"获取AI推荐解读...</div>
+        <div class="ai-status" id="aiRecStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tab: 策略分析 ===== -->
+  <div class="tab-content" id="tab-strategy">
+    <div id="strategyCards"></div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-brain"></i> AI策略解读</div>
+        <button class="btn btn-sm" onclick="loadAIStrategy()"><i class="fas fa-sync-alt"></i> 分析</button>
+      </div>
+      <div class="ai-box">
+        <div class="ai-box-content" id="aiStrategyContent">点击"分析"获取AI策略解读...</div>
+        <div class="ai-status" id="aiStrategyStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tab: 异动筛选 ===== -->
+  <div class="tab-content" id="tab-anomaly">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-bolt"></i> 今日异动股</div>
+        <button class="btn btn-sm" onclick="loadAnomaly()"><i class="fas fa-sync-alt"></i> 刷新</button>
+      </div>
+      <div id="anomalyContent"><div class="loading"><div class="spinner"></div>加载中...</div></div>
+    </div>
+  </div>
+
+  <!-- ===== Tab: 交易规则 ===== -->
+  <div class="tab-content" id="tab-rules">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><i class="fas fa-layer-group"></i> 涨跌停限制</div>
+        <div id="rulesBoards"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-clock"></i> 交易时间</div>
+        <div id="rulesTime"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-coins"></i> 交易费用</div>
+        <div id="rulesFees"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-shield-alt"></i> 交易规则</div>
+        <div id="rulesGeneral"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+      <div class="card-title"><i class="fas fa-calculator"></i> 涨跌停价格示例（前收盘 10.00 元）</div>
+      <div class="table-wrap" style="margin-top:1rem;">
+        <table>
+          <thead><tr><th>板块</th><th>涨停价</th><th>跌停价</th><th>幅度</th></tr></thead>
+          <tbody id="rulesExamples"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tab: AI分析 ===== -->
+  <div class="tab-content" id="tab-ai">
+    <div class="grid-3" style="margin-bottom:1rem;">
+      <div class="stat-card">
+        <div class="stat-value neutral" id="aiProvider">--</div>
+        <div class="stat-label">AI提供商</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value neutral" id="aiModel">--</div>
+        <div class="stat-label">模型</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="aiConfigured">--</div>
+        <div class="stat-label">配置状态</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-robot"></i> AI综合分析</div>
+        <div>
+          <button class="btn btn-sm" onclick="loadAIMarket()" style="margin-right:4px;"><i class="fas fa-chart-line"></i> 市场</button>
+          <button class="btn btn-sm" onclick="loadAIStrategy()" style="margin-right:4px;"><i class="fas fa-chess"></i> 策略</button>
+          <button class="btn btn-sm" onclick="loadAIRecommend()"><i class="fas fa-star"></i> 推荐</button>
+        </div>
+      </div>
+      <div class="ai-box">
+        <div class="ai-box-content" id="aiMainContent">选择分析类型开始AI分析...</div>
+        <div class="ai-status" id="aiMainStatus"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+      <div class="card-title" style="margin-bottom:0.8rem;"><i class="fas fa-cog"></i> 配置说明</div>
+      <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.8;">
+        <p>支持 GLM / Kimi / DeepSeek 等AI模型。通过环境变量配置：</p>
+        <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin-top:8px;font-family:var(--font-mono);font-size:0.75rem;">
+          export AI_API_KEY="your-api-key"<br>
+          export AI_API_BASE="https://open.bigmodel.cn/api/paas/v4"<br>
+          export AI_MODEL="glm-4-flash"
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ========== Utility ==========
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const API = '';
+
+async function fetchJSON(url) {
+  try {
+    const resp = await fetch(API + url);
+    const text = await resp.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('JSON解析失败:', text.slice(0, 200));
+      return { success: false, error: '服务端返回了非JSON数据，可能是网络或代理问题。请在本地网络环境运行。' };
+    }
+  } catch (e) {
+    return { success: false, error: '网络请求失败: ' + e.message };
+  }
+}
+
+function fmt(n, d=2) { return n != null ? Number(n).toFixed(d) : '--'; }
+function fmtAmt(n) {
+  if (n == null) return '--';
+  if (n >= 1e8) return (n/1e8).toFixed(2) + '亿';
+  if (n >= 1e4) return (n/1e4).toFixed(0) + '万';
+  return n.toFixed(0);
+}
+function pctClass(v) { return v > 0 ? 'text-up' : v < 0 ? 'text-down' : 'text-muted'; }
+function scoreClass(v) { return v >= 70 ? 'score-high' : v >= 40 ? 'score-mid' : 'score-low'; }
+function rankHTML(i) {
+  const cls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
+  return `<span class="rank ${cls}">${i+1}</span>`;
+}
+function riskTag(level) {
+  const map = { low: ['低风险','tag-green'], medium: ['中风险','tag-amber'], high: ['高风险','tag-red'] };
+  const [text, cls] = map[level] || ['--','tag-blue'];
+  return `<span class="tag ${cls}">${text}</span>`;
+}
+
+// ========== Tab Navigation ==========
+$$('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.nav-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    $$('.tab-content').forEach(c => c.classList.remove('active'));
+    $(`#tab-${tab.dataset.tab}`).classList.add('active');
+    // Lazy load
+    const loaders = {
+      market: loadMarket, watchlist: loadWatchlist, recommend: loadRecommend,
+      strategy: loadStrategy, anomaly: loadAnomaly, rules: loadRules, ai: loadAIStatus,
+    };
+    if (loaders[tab.dataset.tab]) loaders[tab.dataset.tab]();
+  });
+});
+
+// ========== Clock ==========
+function updateClock() {
+  const now = new Date();
+  $('#headerTime').textContent = now.toLocaleString('zh-CN', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ========== Market Overview ==========
+async function loadMarket() {
+  try {
+    const { success, data, error } = await fetchJSON('/api/market');
+    if (!success) throw new Error(error);
+    const stats = $('#marketStats');
+    const idx = data.sh_index || 0;
+    const chg = data.sh_change || 0;
+    const cls = chg >= 0 ? 'up' : 'down';
+    const overview = data.overview || {};
+    stats.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-value ${cls}">${fmt(idx,0)}</div>
+        <div class="stat-label">上证指数 ${chg>=0?'+':''}${fmt(chg)}%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value up">${data.limit_up || 0}</div>
+        <div class="stat-label">涨停家数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value down">${data.limit_down || 0}</div>
+        <div class="stat-label">跌停家数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value neutral">${(overview.up_count||0)+(overview.down_count||0)||'--'}</div>
+        <div class="stat-label">涨/跌 (上涨${overview.up_count||'?'} / 下跌${overview.down_count||'?'})</div>
+      </div>
+    `;
+  } catch (e) {
+    $('#marketStats').innerHTML = `<div class="card"><div class="loading">加载失败: ${e.message}</div></div>`;
+  }
+}
+
+// ========== Watchlist ==========
+async function loadWatchlist() {
+  const body = $('#watchlistBody');
+  body.innerHTML = '<tr><td colspan="7" class="loading"><div class="spinner"></div>加载中...</td></tr>';
+  try {
+    const { success, data, error } = await fetchJSON('/api/watchlist');
+    if (!success) throw new Error(error);
+    if (!data.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">暂无数据</td></tr>'; return; }
+    body.innerHTML = data.map(s => {
+      if (s.error) return `<tr><td>${s.code||''}</td><td colspan="5" class="text-muted">${s.error}</td><td></td></tr>`;
+      const cls = pctClass(s.change_pct);
+      return `<tr>
+        <td style="color:var(--text-secondary)">${s.ts_code}</td>
+        <td style="font-family:var(--font-sans);font-weight:500">${s.name}</td>
+        <td>${fmt(s.current_price)}</td>
+        <td class="${cls}">${s.change_pct>=0?'+':''}${fmt(s.change_pct)}%</td>
+        <td>${fmtAmt(s.volume)}</td>
+        <td>${fmtAmt(s.amount)}</td>
+        <td><button class="btn btn-sm" onclick="loadAIStock('${s.ts_code}')"><i class="fas fa-robot"></i></button></td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="7" class="loading" style="color:var(--accent-red)">加载失败: ${e.message}</td></tr>`;
+  }
+}
+
+// ========== Recommend ==========
+async function loadRecommend() {
+  const body = $('#recBody');
+  body.innerHTML = '<tr><td colspan="10" class="loading"><div class="spinner"></div>加载中...</td></tr>';
+  try {
+    const { success, data, error } = await fetchJSON('/api/recommend');
+    if (!success) throw new Error(error);
+    $('#recBadge').textContent = data.market_sentiment || '--';
+    const warns = data.warnings || [];
+    $('#recWarnings').innerHTML = warns.map(w => `<div style="padding:6px 12px;background:rgba(255,171,0,0.1);border-radius:6px;margin-bottom:6px;font-size:0.8rem;color:var(--accent-amber);">⚠️ ${w}</div>`).join('');
+    const stocks = data.recommendations || [];
+    if (!stocks.length) { body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem;">暂无推荐</td></tr>'; return; }
+    body.innerHTML = stocks.map((s, i) => {
+      const cls = pctClass(s.change_pct);
+      const signals = (s.signals||[]).slice(0,3).map(t => `<span class="tag tag-blue">${t}</span>`).join('');
+      return `<tr>
+        <td>${rankHTML(i)}</td>
+        <td style="color:var(--text-secondary)">${s.ts_code}</td>
+        <td style="font-family:var(--font-sans);font-weight:500">${s.name}</td>
+        <td><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:700;color:${s.total_score>=70?'var(--accent-green)':s.total_score>=40?'var(--accent-amber)':'var(--accent-red)'}">${fmt(s.total_score,0)}</span><div class="score-bar" style="width:60px;"><div class="score-bar-fill ${scoreClass(s.total_score)}" style="width:${s.total_score}%"></div></div></div></td>
+        <td>${fmt(s.trend_score,0)}</td>
+        <td>${fmt(s.momentum_score,0)}</td>
+        <td>${fmt(s.volume_score,0)}</td>
+        <td>${fmt(s.current_price)}</td>
+        <td class="${cls}">${s.change_pct>=0?'+':''}${fmt(s.change_pct)}%</td>
+        <td>${signals}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="10" class="loading" style="color:var(--accent-red)">加载失败: ${e.message}</td></tr>`;
+  }
+}
+
+// ========== Strategy ==========
+async function loadStrategy() {
+  const container = $('#strategyCards');
+  container.innerHTML = '<div class="card"><div class="loading"><div class="spinner"></div>加载中...</div></div>';
+  try {
+    const { success, data, error } = await fetchJSON('/api/strategy');
+    if (!success) throw new Error(error);
+    const icons = { '动量策略': 'fa-rocket', '均值回归': 'fa-arrows-alt-v', '趋势跟踪': 'fa-chart-line', '波动率突破': 'fa-bolt' };
+    container.innerHTML = Object.entries(data).map(([name, signals]) => {
+      const icon = icons[name] || 'fa-chart-bar';
+      const rows = (signals || []).slice(0, 5).map(s => {
+        const isBuy = /买|看多|突破/.test(s.action || '');
+        const isSell = /卖|看空/.test(s.action || '');
+        const tagCls = isBuy ? 'tag-green' : isSell ? 'tag-red' : 'tag-blue';
+        return `<tr>
+          <td style="color:var(--text-secondary)">${s.code || ''}</td>
+          <td style="font-family:var(--font-sans)">${s.name || ''}</td>
+          <td><span class="tag ${tagCls}">${s.action || '--'}</span></td>
+          <td>${fmt((s.confidence||0)*100,0)}%</td>
+          <td style="font-family:var(--font-sans);color:var(--text-secondary);font-size:0.8rem;">${(s.reason||'').slice(0,30)}...</td>
+        </tr>`;
+      }).join('');
+      return `<div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas ${icon}"></i> ${name}</div>
+          <span class="card-badge">${(signals||[]).length} 个信号</span>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>代码</th><th>名称</th><th>操作</th><th>置信度</th><th>原因</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:1rem;">无信号</td></tr>'}</tbody></table></div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="card"><div class="loading" style="color:var(--accent-red)">加载失败: ${e.message}</div></div>`;
+  }
+}
+
+// ========== Anomaly ==========
+async function loadAnomaly() {
+  const container = $('#anomalyContent');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+  try {
+    const { success, data, error } = await fetchJSON('/api/anomaly');
+    if (!success) throw new Error(error);
+    if (!data || !data.length) { container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:2rem;">今日无显著异动</div>'; return; }
+    container.innerHTML = '<div class="grid-3">' + data.map(s => {
+      const cls = pctClass(s.change_pct);
+      return `<div class="stat-card" style="text-align:left;padding:1.2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-family:var(--font-sans);font-weight:700;font-size:1rem;">${s.name}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);font-family:var(--font-mono);">${s.ts_code}</div>
+          </div>
+          <div class="${cls}" style="font-size:1.3rem;font-weight:900;font-family:var(--font-mono);">${s.change_pct>=0?'+':''}${fmt(s.change_pct)}%</div>
+        </div>
+        <div style="margin-top:8px;">${(s.signals||[]).slice(0,3).map(t => `<span class="tag tag-amber">${t}</span>`).join('')}</div>
+        <div style="margin-top:8px;font-size:0.75rem;color:var(--text-muted);">评分: ${fmt(s.total_score,0)}/100</div>
+      </div>`;
+    }).join('') + '</div>';
+  } catch (e) {
+    container.innerHTML = `<div class="loading" style="color:var(--accent-red)">加载失败: ${e.message}</div>`;
+  }
+}
+
+// ========== Rules ==========
+async function loadRules() {
+  try {
+    const { success, data, error } = await fetchJSON('/api/rules');
+    if (!success) throw new Error(error);
+
+    // Boards
+    const boards = data.boards || {};
+    $('#rulesBoards').innerHTML = Object.entries(boards).map(([k, v]) =>
+      `<div class="rule-item"><span class="rule-name">${v.name}</span><span class="rule-value">±${v.limit_pct}%</span></div>`
+    ).join('');
+
+    // Time
+    const time = data.trading_time || {};
+    $('#rulesTime').innerHTML = `
+      <div class="rule-item"><span class="rule-name">集合竞价</span><span class="rule-value">${time.auction}</span></div>
+      <div class="rule-item"><span class="rule-name">上午连续竞价</span><span class="rule-value">${time.morning}</span></div>
+      <div class="rule-item"><span class="rule-name">下午连续竞价</span><span class="rule-value">${time.afternoon}</span></div>
+    `;
+
+    // Fees
+    const fees = data.fees || {};
+    $('#rulesFees').innerHTML = `
+      <div class="rule-item"><span class="rule-name">佣金</span><span class="rule-value">${fees.commission}</span></div>
+      <div class="rule-item"><span class="rule-name">印花税</span><span class="rule-value">${fees.stamp_duty}</span></div>
+      <div class="rule-item"><span class="rule-name">过户费</span><span class="rule-value">${fees.transfer_fee}</span></div>
+    `;
+
+    // General
+    $('#rulesGeneral').innerHTML = `
+      <div class="rule-item"><span class="rule-name">最低交易量</span><span class="rule-value">${data.min_lot_size}股（1手）</span></div>
+      <div class="rule-item"><span class="rule-name">单笔最大委托</span><span class="rule-value">${(data.max_single_order||0).toLocaleString()}股</span></div>
+      <div class="rule-item"><span class="rule-name">最小价格变动</span><span class="rule-value">${data.min_price_unit}元</span></div>
+      <div class="rule-item"><span class="rule-name">交易制度</span><span class="rule-value">${data.t_plus_1 ? 'T+1' : '--'}</span></div>
+    `;
+
+    // Examples
+    const ex = data.limit_price_examples || {};
+    const nameMap = { main:'主板', kcb:'科创板', cyb:'创业板', st:'ST股' };
+    $('#rulesExamples').innerHTML = Object.entries(ex).map(([k, v]) =>
+      `<tr><td style="font-family:var(--font-sans)">${nameMap[k]||k}</td><td class="text-up">${v.up}元</td><td class="text-down">${v.down}元</td><td>±${boards[k]?.limit_pct||'--'}%</td></tr>`
+    ).join('');
+  } catch (e) {
+    console.error('Rules load error:', e);
+  }
+}
+
+// ========== AI Functions ==========
+async function loadAIStatus() {
+  try {
+    const { success, data } = await fetchJSON('/api/ai/status');
+    if (success && data) {
+      $('#aiProvider').textContent = (data.provider || '--').toUpperCase();
+      $('#aiModel').textContent = data.model || '--';
+      const el = $('#aiConfigured');
+      el.textContent = data.configured ? '已配置' : '未配置';
+      el.className = 'stat-value ' + (data.configured ? 'up' : 'down');
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function callAI(url, contentId, statusId) {
+  const content = $(contentId);
+  const status = $(statusId);
+  content.textContent = '正在分析中...';
+  status.textContent = '';
+  try {
+    const { success, data, error } = await fetchJSON(url);
+    if (!success) throw new Error(error);
+    content.textContent = data.analysis || '无分析结果';
+    status.textContent = `分析完成 · ${new Date().toLocaleTimeString('zh-CN')}`;
+  } catch (e) {
+    content.textContent = `分析失败: ${e.message}`;
+    status.textContent = '';
+  }
+}
+
+function loadAIMarket() { callAI('/api/ai/market', '#aiMarketContent', '#aiMarketStatus'); }
+function loadAIStrategy() { callAI('/api/ai/strategy', '#aiStrategyContent', '#aiStrategyStatus'); }
+function loadAIRecommend() { callAI('/api/ai/recommend', '#aiRecContent', '#aiRecStatus'); }
+
+async function loadAIStock(tsCode) {
+  // Show in a modal-like overlay
+  let overlay = $('#aiStockOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'aiStockOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2rem;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div class="card-title"><i class="fas fa-robot"></i> AI个股分析</div>
+        <button class="btn btn-sm" onclick="document.getElementById('aiStockOverlay').remove()">✕ 关闭</button>
+      </div>
+      <div class="ai-box"><div class="ai-box-content" id="aiStockContent">分析中...</div><div class="ai-status" id="aiStockStatus"></div></div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  }
+  $('#aiStockContent').textContent = '正在分析 ' + tsCode + '...';
+  $('#aiStockStatus').textContent = '';
+  try {
+    const { success, data, error } = await fetchJSON(`/api/ai/stock/${tsCode}`);
+    if (!success) throw new Error(error);
+    $('#aiStockContent').textContent = data.analysis || '无分析结果';
+    $('#aiStockStatus').textContent = `${tsCode} · ${new Date().toLocaleTimeString('zh-CN')}`;
+  } catch (e) {
+    $('#aiStockContent').textContent = `分析失败: ${e.message}`;
+  }
+}
+
+// ========== Init ==========
+loadMarket();
+</script>
+</body>
+</html>

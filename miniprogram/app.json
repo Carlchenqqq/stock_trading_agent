@@ -1,0 +1,30 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/watchlist/watchlist",
+    "pages/recommend/recommend",
+    "pages/strategy/strategy",
+    "pages/rules/rules",
+    "pages/ai/ai"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#0a0e17",
+    "navigationBarTitleText": "智能交易Agent",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0a0e17",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#8899aa",
+    "selectedColor": "#18ffff",
+    "backgroundColor": "#111827",
+    "borderStyle": "black",
+    "list": [
+      {"pagePath": "pages/index/index", "text": "市场", "iconPath": "images/market.png", "selectedIconPath": "images/market-active.png"},
+      {"pagePath": "pages/watchlist/watchlist", "text": "自选", "iconPath": "images/watch.png", "selectedIconPath": "images/watch-active.png"},
+      {"pagePath": "pages/recommend/recommend", "text": "推荐", "iconPath": "images/star.png", "selectedIconPath": "images/star-active.png"},
+      {"pagePath": "pages/strategy/strategy", "text": "策略", "iconPath": "images/strategy.png", "selectedIconPath": "images/strategy-active.png"}
+    ]
+  },
+  "style": "v2"
+}

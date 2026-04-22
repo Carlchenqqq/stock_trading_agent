@@ -1,0 +1,171 @@
+<view class="page-container">
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{loading}}">
+    <view class="skeleton skeleton-title" style="width: 50%; margin: 0 auto 24rpx;"></view>
+    <view class="skeleton skeleton-text" style="width: 80%; margin: 0 auto 16rpx;"></view>
+    <view class="skeleton skeleton-text" style="width: 60%; margin: 0 auto 16rpx;"></view>
+    <view class="skeleton skeleton-text" style="width: 70%; margin: 0 auto;"></view>
+  </view>
+
+  <!-- ==================== 股票AI分析视图 ==================== -->
+  <view class="ai-stock-view" wx:if="{{!loading && stockCode}}">
+
+    <!-- 股票头部信息 -->
+    <view class="stock-header-card">
+      <view class="stock-header-info">
+        <text class="stock-header-name">{{stockName}}</text>
+        <text class="stock-header-code">{{stockCode}}</text>
+      </view>
+      <view class="stock-header-price {{stockAnalysis.changePctClass}}" wx:if="{{stockAnalysis}}">
+        <text class="stock-header-price-value">{{stockAnalysis.priceText}}</text>
+        <text class="stock-header-change">{{stockAnalysis.changePctText}}</text>
+      </view>
+    </view>
+
+    <!-- AI分析评分 -->
+    <view class="ai-score-card" wx:if="{{stockAnalysis}}">
+      <view class="ai-score-header">
+        <view class="ai-score-icon-wrap">
+          <text class="ai-score-icon-text">AI</text>
+        </view>
+        <text class="ai-score-title">AI综合评分</text>
+      </view>
+      <view class="ai-score-body">
+        <text class="ai-score-value {{stockAnalysis.scoreClass}}">{{stockAnalysis.scoreText}}</text>
+        <text class="ai-score-label">/ 100</text>
+      </view>
+      <view class="ai-score-bar">
+        <view class="progress-bar progress-blue" style="width: 100%;">
+          <view class="progress-fill" style="width: {{stockAnalysis.score}}%;"></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- AI分析详情 -->
+    <view class="ai-analysis-card" wx:if="{{stockAnalysis && stockAnalysis.analysis}}">
+      <view class="ai-card-header">
+        <view class="ai-icon-wrap">
+          <text class="ai-icon-text">AI</text>
+        </view>
+        <text class="ai-card-title">分析详情</text>
+      </view>
+      <view class="ai-card-body">
+        <text class="ai-analysis-text">{{stockAnalysis.analysis}}</text>
+      </view>
+    </view>
+
+    <!-- 操作建议 -->
+    <view class="ai-action-card" wx:if="{{stockAnalysis && stockAnalysis.action}}">
+      <view class="ai-card-header">
+        <view class="ai-icon-wrap action-icon-bg">
+          <text class="ai-icon-text">!</text>
+        </view>
+        <text class="ai-card-title">操作建议</text>
+      </view>
+      <view class="ai-card-body">
+        <text class="ai-analysis-text">{{stockAnalysis.action}}</text>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- ==================== AI仪表盘视图 ==================== -->
+  <view class="ai-dashboard-view" wx:if="{{!loading && !stockCode}}">
+
+    <!-- AI状态卡片 -->
+    <view class="status-card-grid">
+      <view class="status-card">
+        <text class="status-card-label">AI提供商</text>
+        <text class="status-card-value">{{aiStatus.provider}}</text>
+      </view>
+      <view class="status-card">
+        <text class="status-card-label">模型</text>
+        <text class="status-card-value">{{aiStatus.model}}</text>
+      </view>
+      <view class="status-card">
+        <text class="status-card-label">配置状态</text>
+        <text class="status-card-value {{aiStatus.configured ? 'text-green' : 'text-red'}}">
+          {{aiStatus.configured ? '已配置' : '未配置'}}
+        </text>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="ai-action-grid">
+      <view class="ai-action-btn market-btn" bindtap="loadAIMarket">
+        <view class="ai-action-icon-wrap market-icon-bg">
+          <text class="ai-action-icon-text">M</text>
+        </view>
+        <text class="ai-action-label">市场分析</text>
+      </view>
+      <view class="ai-action-btn strategy-btn" bindtap="loadAIStrategy">
+        <view class="ai-action-icon-wrap strategy-icon-bg">
+          <text class="ai-action-icon-text">S</text>
+        </view>
+        <text class="ai-action-label">策略分析</text>
+      </view>
+      <view class="ai-action-btn recommend-btn" bindtap="loadAIRecommend">
+        <view class="ai-action-icon-wrap recommend-icon-bg">
+          <text class="ai-action-icon-text">R</text>
+        </view>
+        <text class="ai-action-label">推荐分析</text>
+      </view>
+    </view>
+
+    <!-- 分析结果卡片 -->
+    <view class="ai-result-card" wx:if="{{analysisResult}}">
+      <view class="ai-card-header">
+        <view class="ai-icon-wrap">
+          <text class="ai-icon-text">AI</text>
+        </view>
+        <text class="ai-card-title">{{analysisType}}结果</text>
+      </view>
+      <view class="ai-card-body">
+        <text class="ai-analysis-text">{{analysisResult}}</text>
+      </view>
+    </view>
+
+    <!-- 分析加载中 -->
+    <view class="ai-loading-card" wx:if="{{analysisLoading}}">
+      <view class="ai-card-header">
+        <view class="ai-icon-wrap">
+          <text class="ai-icon-text">AI</text>
+        </view>
+        <text class="ai-card-title">{{analysisType}}中...</text>
+      </view>
+      <view class="ai-card-body">
+        <view class="ai-loading-dots">
+          <view class="dot"></view>
+          <view class="dot"></view>
+          <view class="dot"></view>
+        </view>
+        <text class="ai-loading-text">AI正在分析中，请稍候</text>
+      </view>
+    </view>
+
+    <!-- 配置说明 -->
+    <view class="config-section">
+      <view class="config-header">
+        <view class="config-icon-wrap">
+          <text class="config-icon-text">?</text>
+        </view>
+        <text class="config-title">配置说明</text>
+      </view>
+      <view class="config-body">
+        <view class="config-item">
+          <text class="config-item-title">1. 配置AI服务</text>
+          <text class="config-item-desc">在服务端配置AI提供商（如智谱GLM、Kimi等）的API密钥</text>
+        </view>
+        <view class="config-item">
+          <text class="config-item-title">2. 选择模型</text>
+          <text class="config-item-desc">推荐使用GLM-4或Kimi大模型以获得最佳分析效果</text>
+        </view>
+        <view class="config-item">
+          <text class="config-item-title">3. 使用分析</text>
+          <text class="config-item-desc">点击上方按钮进行市场、策略或推荐分析，也可从自选股进入个股AI分析</text>
+        </view>
+      </view>
+    </view>
+
+  </view>
+</view>

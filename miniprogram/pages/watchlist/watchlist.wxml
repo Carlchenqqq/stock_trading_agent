@@ -1,0 +1,92 @@
+<view class="page-container">
+  <!-- 下拉刷新提示 -->
+  <view class="refresh-tip" wx:if="{{refreshing}}">
+    <text class="refresh-tip-text">正在刷新...</text>
+  </view>
+
+  <!-- 骨架屏加载状态 -->
+  <view class="skeleton-list" wx:if="{{loading}}">
+    <view class="skeleton-row" wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this">
+      <view class="skeleton-col-left">
+        <view class="skeleton skeleton-text" style="width: 120rpx;"></view>
+        <view class="skeleton skeleton-text" style="width: 80rpx; margin-top: 12rpx;"></view>
+      </view>
+      <view class="skeleton-col-right">
+        <view class="skeleton skeleton-text" style="width: 100rpx;"></view>
+        <view class="skeleton skeleton-text" style="width: 70rpx; margin-top: 12rpx;"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 股票列表 -->
+  <scroll-view
+    class="stock-scroll"
+    scroll-y
+    wx:if="{{!loading && !isEmpty}}"
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <!-- 列表表头 -->
+    <view class="stock-header">
+      <view class="header-name">股票</view>
+      <view class="header-price">最新价</view>
+      <view class="header-change">涨跌幅</view>
+      <view class="header-volume">成交量</view>
+      <view class="header-amount">成交额</view>
+      <view class="header-action">操作</view>
+    </view>
+
+    <!-- 股票行 -->
+    <view
+      class="stock-row"
+      wx:for="{{stockList}}"
+      wx:key="code"
+      bindtap="onStockTap"
+      data-code="{{item.code}}"
+    >
+      <!-- 股票名称和代码 -->
+      <view class="stock-info">
+        <text class="stock-name">{{item.name}}</text>
+        <text class="stock-code">{{item.code}}</text>
+      </view>
+
+      <!-- 最新价 -->
+      <view class="stock-price {{item.changePctClass}}">
+        <text class="price-value">{{item.priceText}}</text>
+      </view>
+
+      <!-- 涨跌幅 -->
+      <view class="stock-change {{item.changePctClass}}">
+        <text class="change-value">{{item.changePctText}}</text>
+      </view>
+
+      <!-- 成交量 -->
+      <view class="stock-volume">
+        <text class="volume-value text-muted">{{item.volumeText}}</text>
+      </view>
+
+      <!-- 成交额 -->
+      <view class="stock-amount">
+        <text class="amount-value text-muted">{{item.amountText}}</text>
+      </view>
+
+      <!-- AI 分析按钮 -->
+      <view
+        class="stock-action"
+        catchtap="loadAIStock"
+        data-code="{{item.code}}"
+      >
+        <view class="ai-btn-mini">
+          <text class="ai-btn-text">AI</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && isEmpty}}">
+    <text class="empty-icon">📊</text>
+    <text class="empty-text">暂无自选股数据</text>
+    <text class="empty-sub-text">请先添加自选股</text>
+  </view>
+</view>
