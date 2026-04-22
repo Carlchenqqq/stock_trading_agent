@@ -37,8 +37,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-# 安全：使用环境变量或随机生成的密钥，不再有硬编码回退值
-SECRET_KEY = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+# 安全：SECRET_KEY 持久化到文件，避免重启后 Token 失效
+_SECRET_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
+def _load_or_create_secret_key():
+    if os.path.exists(_SECRET_KEY_FILE):
+        with open(_SECRET_KEY_FILE, 'r') as f:
+            return f.read().strip()
+    key = secrets.token_hex(32)
+    with open(_SECRET_KEY_FILE, 'w') as f:
+        f.write(key)
+    # 确保文件权限仅限当前用户
+    os.chmod(_SECRET_KEY_FILE, 0o600)
+    return key
+
+SECRET_KEY = os.environ.get('SECRET_KEY', _load_or_create_secret_key())
 app.secret_key = SECRET_KEY
 
 # ==================== 数据库初始化 ====================
@@ -195,7 +207,9 @@ def index():
 # ==================== 用户认证API ====================
 
 @app.route('/api/register', methods=['POST'])
+@admin_required
 def api_register():
+    """管理员创建新用户"""
     try:
         data = request.get_json()
         username = (data.get('username') or '').strip()
@@ -205,12 +219,10 @@ def api_register():
         user = _db.create_user(username, password)
         if not user:
             return jsonify({"success": False, "error": "用户名已存在"})
-        # 生成签名 Token
-        token = generate_token(user['id'])
-        return jsonify({"success": True, "data": {"id": user['id'], "username": user['username'], "token": token}})
+        return jsonify({"success": True, "data": {"id": user['id'], "username": user['username']}})
     except Exception as e:
-        logger.error(f"注册失败: {e}")
-        return safe_error("注册失败，请稍后重试")
+        logger.error(f"创建用户失败: {e}")
+        return safe_error("创建用户失败，请稍后重试")
 
 
 @app.route('/api/login', methods=['POST'])
@@ -235,6 +247,37 @@ def api_login():
 def api_user_info():
     user = request.current_user
     return jsonify({"success": True, "data": {"id": user['id'], "username": user['username'], "role": user['role'], "ai_usage": user['ai_usage']}})
+
+
+@app.route('/api/user/change-password', methods=['POST'])
+@login_required
+def api_change_password():
+    """用户修改自己的密码"""
+    try:
+        user = request.current_user
+        data = request.get_json()
+        old_password = (data.get('old_password') or '').strip()
+        new_password = (data.get('new_password') or '').strip()
+        if not old_password or not new_password:
+            return jsonify({"success": False, "error": "请输入旧密码和新密码"})
+        if len(new_password) < 4:
+            return jsonify({"success": False, "error": "新密码至少4位"})
+        # 验证旧密码
+        password_ok, _ = _db.verify_password(old_password, user['password_hash'])
+        if not password_ok:
+            return jsonify({"success": False, "error": "旧密码错误"})
+        # 更新密码
+        new_hash = _db.hash_password(new_password)
+        conn = _db.get_connection()
+        try:
+            conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user['id']))
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"修改密码失败: {e}")
+        return safe_error("修改密码失败")
 
 
 # ==================== 自选股API（用户级） ====================
@@ -565,6 +608,63 @@ def api_admin_ai_usage():
     except Exception as e:
         logger.error(f"管理员查询AI用量失败: {e}")
         return safe_error("查询失败")
+
+
+@app.route('/api/admin/reset-password', methods=['POST'])
+@admin_required
+def api_admin_reset_password():
+    """管理员重置指定用户的密码"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        new_password = (data.get('new_password') or '').strip()
+        if not user_id or not new_password:
+            return jsonify({"success": False, "error": "参数不完整"})
+        if len(new_password) < 4:
+            return jsonify({"success": False, "error": "密码至少4位"})
+        target = _db.get_user(user_id)
+        if not target:
+            return jsonify({"success": False, "error": "用户不存在"})
+        new_hash = _db.hash_password(new_password)
+        conn = _db.get_connection()
+        try:
+            conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"重置密码失败: {e}")
+        return safe_error("重置密码失败")
+
+
+@app.route('/api/admin/delete-user', methods=['POST'])
+@admin_required
+def api_admin_delete_user():
+    """管理员删除用户（不能删除自己）"""
+    try:
+        admin = request.current_user
+        data = request.get_json()
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({"success": False, "error": "参数不完整"})
+        if user_id == admin['id']:
+            return jsonify({"success": False, "error": "不能删除自己"})
+        target = _db.get_user(user_id)
+        if not target:
+            return jsonify({"success": False, "error": "用户不存在"})
+        conn = _db.get_connection()
+        try:
+            conn.execute("DELETE FROM watchlist WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM ai_logs WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"删除用户失败: {e}")
+        return safe_error("删除用户失败")
 
 
 # ==================== 全局异常处理（脱敏） ====================

@@ -556,29 +556,6 @@ tr:hover td { background: rgba(0,0,0,0.02); }
         <div class="auth-error" id="loginError"></div>
         <button class="auth-btn" onclick="doLogin()">登 录</button>
       </div>
-      <div class="auth-switch">还没有账号？<a onclick="showRegister()">立即注册</a></div>
-    </div>
-    <!-- Register Form -->
-    <div id="registerForm" style="display:none;">
-      <h2><i class="fas fa-user-plus" style="color:var(--accent-green);"></i> 注册账号</h2>
-      <div class="auth-subtitle">创建您的交易分析账号</div>
-      <div class="auth-form">
-        <div>
-          <label>用户名</label>
-          <input type="text" id="regUsername" placeholder="至少2个字符" autocomplete="username">
-        </div>
-        <div>
-          <label>密码</label>
-          <input type="password" id="regPassword" placeholder="至少4个字符" autocomplete="new-password">
-        </div>
-        <div>
-          <label>确认密码</label>
-          <input type="password" id="regPassword2" placeholder="再次输入密码" autocomplete="new-password">
-        </div>
-        <div class="auth-error" id="regError"></div>
-        <button class="auth-btn" onclick="doRegister()">注 册</button>
-      </div>
-      <div class="auth-switch">已有账号？<a onclick="showLogin()">返回登录</a></div>
     </div>
   </div>
 </div>
@@ -599,6 +576,7 @@ tr:hover td { background: rgba(0,0,0,0.02); }
     <div class="user-info" id="userInfo" style="display:none;">
       <span class="username" id="userName"></span>
       <span class="role-tag" id="userRole" style="display:none;">管理员</span>
+      <button class="btn btn-xs" onclick="showChangePassword()" title="修改密码"><i class="fas fa-key"></i></button>
       <button class="btn btn-xs" onclick="doLogout()" title="退出登录"><i class="fas fa-sign-out-alt"></i></button>
     </div>
   </div>
@@ -816,7 +794,7 @@ tr:hover td { background: rgba(0,0,0,0.02); }
       <div style="padding:1.5rem;line-height:1.8;color:var(--text-secondary);">
 
         <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-user" style="color:var(--accent-blue);"></i> 账号系统</h4>
-        <p>首次使用需要注册账号。注册后登录即可使用全部功能。每个用户的自选股和AI用量独立记录。</p>
+        <p>账号由管理员统一分配。登录后可点击右上角 <i class="fas fa-key"></i> 修改密码。每个用户的自选股和AI用量独立记录。</p>
 
         <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-chart-line" style="color:var(--accent-blue);"></i> 市场概览</h4>
         <p>展示A股三大指数（上证指数、深证成指、创业板指）的实时行情，以及当日涨停/跌停家数和全市场涨跌分布。数据每5分钟自动缓存。</p>
@@ -868,17 +846,36 @@ tr:hover td { background: rgba(0,0,0,0.02); }
       </div>
     </div>
 
+    <!-- 创建用户 -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><i class="fas fa-users"></i> 注册用户列表</div>
+        <div class="card-title"><i class="fas fa-user-plus"></i> 创建新用户</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <label style="font-size:0.75rem;color:var(--text-muted);">用户名</label>
+          <input type="text" id="newUserUsername" placeholder="至少2个字符" style="display:block;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-family:var(--font-sans);outline:none;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem;color:var(--text-muted);">初始密码</label>
+          <input type="text" id="newUserPassword" placeholder="至少4个字符" style="display:block;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-family:var(--font-sans);outline:none;">
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="adminCreateUser()"><i class="fas fa-plus"></i> 创建</button>
+        <span id="createUserMsg" style="font-size:0.8rem;"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-users"></i> 用户列表</div>
         <button class="btn btn-sm" onclick="loadAdminUsers()"><i class="fas fa-sync-alt"></i> 刷新</button>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>ID</th><th>用户名</th><th>角色</th><th>AI用量</th><th>注册时间</th></tr>
+            <tr><th>ID</th><th>用户名</th><th>角色</th><th>AI用量</th><th>注册时间</th><th>操作</th></tr>
           </thead>
-          <tbody id="adminUsersBody"><tr><td colspan="5" class="loading"><div class="spinner"></div>加载中...</td></tr></tbody>
+          <tbody id="adminUsersBody"><tr><td colspan="6" class="loading"><div class="spinner"></div>加载中...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -899,6 +896,48 @@ tr:hover td { background: rgba(0,0,0,0.02); }
     </div>
   </div>
 
+  <!-- ===== 修改密码弹窗 ===== -->
+  <div class="auth-overlay" id="changePwdOverlay" style="display:none;">
+    <div class="auth-box">
+      <h2><i class="fas fa-key" style="color:var(--accent-amber);"></i> 修改密码</h2>
+      <div class="auth-subtitle">修改您的登录密码</div>
+      <div class="auth-form">
+        <div>
+          <label>当前密码</label>
+          <input type="password" id="oldPassword" placeholder="请输入当前密码" autocomplete="current-password">
+        </div>
+        <div>
+          <label>新密码</label>
+          <input type="password" id="newPassword" placeholder="至少4个字符" autocomplete="new-password">
+        </div>
+        <div>
+          <label>确认新密码</label>
+          <input type="password" id="newPassword2" placeholder="再次输入新密码" autocomplete="new-password">
+        </div>
+        <div class="auth-error" id="changePwdError"></div>
+        <button class="auth-btn" onclick="doChangePassword()">确认修改</button>
+      </div>
+      <div class="auth-switch"><a onclick="hideChangePassword()">取消</a></div>
+    </div>
+  </div>
+
+  <!-- ===== 管理员重置密码弹窗 ===== -->
+  <div class="auth-overlay" id="resetPwdOverlay" style="display:none;">
+    <div class="auth-box">
+      <h2><i class="fas fa-key" style="color:var(--accent-red);"></i> 重置密码</h2>
+      <div class="auth-subtitle">为用户 <strong id="resetPwdUsername"></strong> 设置新密码</div>
+      <div class="auth-form">
+        <div>
+          <label>新密码</label>
+          <input type="password" id="resetPwdNew" placeholder="至少4个字符">
+        </div>
+        <div class="auth-error" id="resetPwdError"></div>
+        <button class="auth-btn" onclick="doResetPassword()">确认重置</button>
+      </div>
+      <div class="auth-switch"><a onclick="hideResetPassword()">取消</a></div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -915,14 +954,7 @@ function getToken() {
 
 function showLogin() {
   $('#loginForm').style.display = 'block';
-  $('#registerForm').style.display = 'none';
   $('#loginError').textContent = '';
-}
-
-function showRegister() {
-  $('#loginForm').style.display = 'none';
-  $('#registerForm').style.display = 'block';
-  $('#regError').textContent = '';
 }
 
 async function doLogin() {
@@ -949,37 +981,6 @@ async function doLogin() {
   } catch (e) {
     btn.disabled = false; btn.textContent = '登 录';
     $('#loginError').textContent = '网络请求失败';
-  }
-}
-
-async function doRegister() {
-  const username = $('#regUsername').value.trim();
-  const password = $('#regPassword').value;
-  const password2 = $('#regPassword2').value;
-  if (!username || !password) { $('#regError').textContent = '请填写用户名和密码'; return; }
-  if (password !== password2) { $('#regError').textContent = '两次密码不一致'; return; }
-  if (password.length < 4) { $('#regError').textContent = '密码至少4位'; return; }
-  const btn = $('#registerForm').querySelector('.auth-btn');
-  btn.disabled = true; btn.textContent = '注册中...';
-  try {
-    const resp = await fetch(API + '/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    const res = await resp.json();
-    btn.disabled = false; btn.textContent = '注 册';
-    if (res.success) {
-      // Auto login after register
-      currentUser = res.data;
-      localStorage.setItem('stock_user', JSON.stringify(currentUser));
-      onLoginSuccess();
-    } else {
-      $('#regError').textContent = res.error || '注册失败';
-    }
-  } catch (e) {
-    btn.disabled = false; btn.textContent = '注 册';
-    $('#regError').textContent = '网络请求失败';
   }
 }
 
@@ -1542,12 +1543,17 @@ async function loadAdminUsers() {
     }
     body.innerHTML = users.map(u => {
       const roleTag = u.role === 'admin' ? '<span class="tag tag-purple">管理员</span>' : '<span class="tag tag-blue">用户</span>';
+      const isSelf = u.id === currentUser.id;
+      const ops = isSelf ? '<span style="color:var(--text-muted);font-size:0.75rem;">当前用户</span>'
+        : `<button class="btn btn-xs" onclick="showResetPassword(${u.id},'${esc(u.username)}')" title="重置密码"><i class="fas fa-key"></i></button>
+           <button class="btn btn-xs btn-danger" onclick="adminDeleteUser(${u.id},'${esc(u.username)}')" title="删除用户"><i class="fas fa-trash"></i></button>`;
       return `<tr>
         <td>${u.id}</td>
         <td style="font-family:var(--font-sans);font-weight:500">${esc(u.username)}</td>
         <td>${roleTag}</td>
         <td>${u.ai_usage || 0}</td>
         <td style="font-size:0.8rem;color:var(--text-muted)">${esc(u.created_at)}</td>
+        <td style="white-space:nowrap;">${ops}</td>
       </tr>`;
     }).join('');
   } catch (e) {
@@ -1620,15 +1626,135 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Enter key for login/register
+// Enter key for login
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     if ($('#authOverlay').style.display !== 'none') {
-      if ($('#loginForm').style.display !== 'none') doLogin();
-      else doRegister();
+      doLogin();
     }
   }
 });
+
+// ========== Change Password ==========
+function showChangePassword() {
+  $('#changePwdOverlay').style.display = 'flex';
+  $('#oldPassword').value = '';
+  $('#newPassword').value = '';
+  $('#newPassword2').value = '';
+  $('#changePwdError').textContent = '';
+}
+
+function hideChangePassword() {
+  $('#changePwdOverlay').style.display = 'none';
+}
+
+async function doChangePassword() {
+  const oldPwd = $('#oldPassword').value;
+  const newPwd = $('#newPassword').value;
+  const newPwd2 = $('#newPassword2').value;
+  if (!oldPwd || !newPwd) { $('#changePwdError').textContent = '请填写完整'; return; }
+  if (newPwd !== newPwd2) { $('#changePwdError').textContent = '两次密码不一致'; return; }
+  if (newPwd.length < 4) { $('#changePwdError').textContent = '新密码至少4位'; return; }
+  try {
+    const resp = await fetch(API + '/api/user/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+      body: JSON.stringify({ old_password: oldPwd, new_password: newPwd }),
+    });
+    const res = await resp.json();
+    if (res.success) {
+      hideChangePassword();
+      alert('密码修改成功');
+    } else {
+      $('#changePwdError').textContent = res.error || '修改失败';
+    }
+  } catch (e) {
+    $('#changePwdError').textContent = '网络请求失败';
+  }
+}
+
+// ========== Admin: Create User ==========
+async function adminCreateUser() {
+  const username = $('#newUserUsername').value.trim();
+  const password = $('#newUserPassword').value.trim();
+  const msgEl = $('#createUserMsg');
+  if (!username || !password) { msgEl.innerHTML = '<span style="color:var(--accent-red);">请填写用户名和密码</span>'; return; }
+  if (username.length < 2 || password.length < 4) { msgEl.innerHTML = '<span style="color:var(--accent-red);">用户名至少2位，密码至少4位</span>'; return; }
+  try {
+    const resp = await fetch(API + '/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+      body: JSON.stringify({ username, password }),
+    });
+    const res = await resp.json();
+    if (res.success) {
+      msgEl.innerHTML = '<span style="color:var(--accent-green);">✓ 用户创建成功</span>';
+      $('#newUserUsername').value = '';
+      $('#newUserPassword').value = '';
+      loadAdminUsers();
+    } else {
+      msgEl.innerHTML = `<span style="color:var(--accent-red);">${esc(res.error)}</span>`;
+    }
+  } catch (e) {
+    msgEl.innerHTML = '<span style="color:var(--accent-red);">创建失败</span>';
+  }
+}
+
+// ========== Admin: Reset Password ==========
+let _resetUserId = null;
+function showResetPassword(userId, username) {
+  _resetUserId = userId;
+  $('#resetPwdUsername').textContent = username;
+  $('#resetPwdNew').value = '';
+  $('#resetPwdError').textContent = '';
+  $('#resetPwdOverlay').style.display = 'flex';
+}
+
+function hideResetPassword() {
+  $('#resetPwdOverlay').style.display = 'none';
+  _resetUserId = null;
+}
+
+async function doResetPassword() {
+  const newPwd = $('#resetPwdNew').value.trim();
+  if (!newPwd || newPwd.length < 4) { $('#resetPwdError').textContent = '密码至少4位'; return; }
+  try {
+    const resp = await fetch(API + '/api/admin/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+      body: JSON.stringify({ user_id: _resetUserId, new_password: newPwd }),
+    });
+    const res = await resp.json();
+    if (res.success) {
+      hideResetPassword();
+      alert('密码重置成功');
+    } else {
+      $('#resetPwdError').textContent = res.error || '重置失败';
+    }
+  } catch (e) {
+    $('#resetPwdError').textContent = '网络请求失败';
+  }
+}
+
+// ========== Admin: Delete User ==========
+async function adminDeleteUser(userId, username) {
+  if (!confirm(`确定要删除用户「${username}」吗？该用户的所有自选股和AI日志将一并删除。`)) return;
+  try {
+    const resp = await fetch(API + '/api/admin/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    const res = await resp.json();
+    if (res.success) {
+      loadAdminUsers();
+    } else {
+      alert(res.error || '删除失败');
+    }
+  } catch (e) {
+    alert('删除失败');
+  }
+}
 </script>
 </body>
 </html>
