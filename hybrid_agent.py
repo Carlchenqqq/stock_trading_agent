@@ -179,6 +179,17 @@ class TradingAgent:
 
     def run_strategy_analysis(self) -> Dict:
         """运行策略分析"""
+        # 如果 watchlist 为空，自动从全市场获取热门股票
+        stock_pool = self.watchlist
+        if not stock_pool:
+            try:
+                all_stocks = self.data_adapter.get_stock_list(limit=200)
+                stock_pool = [{"code": s["ts_code"], "name": s["name"]} for s in all_stocks]
+                logger.info(f"策略分析: watchlist为空，自动获取{len(stock_pool)}只股票")
+            except Exception as e:
+                logger.error(f"获取股票列表失败: {e}")
+                stock_pool = []
+
         strategies = {
             "动量策略": self._momentum_strategy,
             "均值回归": self._mean_reversion,
@@ -188,7 +199,7 @@ class TradingAgent:
         results = {}
         for name, func in strategies.items():
             try:
-                signals = func()
+                signals = func(stock_pool)
                 results[name] = signals
                 print(f"\n【{name}】")
                 for sig in signals[:3]:
@@ -209,10 +220,11 @@ class TradingAgent:
         data = self.data_adapter.get_stock_daily(code, limit=limit)
         return [d.close for d in data] if data else []
 
-    def _momentum_strategy(self) -> List[Dict]:
+    def _momentum_strategy(self, stock_pool=None) -> List[Dict]:
         """动量策略：追涨杀跌"""
         signals = []
-        for stock in self.watchlist:
+        pool = stock_pool or self.watchlist
+        for stock in pool:
             closes = self._get_closes(stock["code"], 10)
             if len(closes) < 6:
                 continue
@@ -232,10 +244,11 @@ class TradingAgent:
                 })
         return sorted(signals, key=lambda x: abs(x.get("confidence", 0)), reverse=True)
 
-    def _mean_reversion(self) -> List[Dict]:
+    def _mean_reversion(self, stock_pool=None) -> List[Dict]:
         """均值回归：超跌买入/超涨卖出"""
         signals = []
-        for stock in self.watchlist:
+        pool = stock_pool or self.watchlist
+        for stock in pool:
             closes = self._get_closes(stock["code"], 20)
             if len(closes) < 10:
                 continue
@@ -257,10 +270,11 @@ class TradingAgent:
                 })
         return sorted(signals, key=lambda x: abs(x.get("confidence", 0)), reverse=True)
 
-    def _trend_following(self) -> List[Dict]:
+    def _trend_following(self, stock_pool=None) -> List[Dict]:
         """趋势跟踪：均线多头/空头排列"""
         signals = []
-        for stock in self.watchlist:
+        pool = stock_pool or self.watchlist
+        for stock in pool:
             closes = self._get_closes(stock["code"], 30)
             if len(closes) < 21:
                 continue
@@ -274,10 +288,11 @@ class TradingAgent:
                                "action": "趋势看空", "confidence": 0.7, "reason": "空头排列"})
         return sorted(signals, key=lambda x: abs(x.get("confidence", 0)), reverse=True)
 
-    def _volatility_breakout(self) -> List[Dict]:
+    def _volatility_breakout(self, stock_pool=None) -> List[Dict]:
         """波动率突破：ATR+放量检测"""
         signals = []
-        for stock in self.watchlist:
+        pool = stock_pool or self.watchlist
+        for stock in pool:
             data = self.data_adapter.get_stock_daily(stock["code"], 20)
             if len(data) < 11:
                 continue
@@ -327,8 +342,19 @@ class TradingAgent:
         sentiment_data = self.data_adapter.calculate_market_sentiment()
         sentiment_label = sentiment_data.sentiment_label
 
+        # 如果 watchlist 为空，自动获取股票池
+        stock_pool = self.watchlist
+        if not stock_pool:
+            try:
+                all_stocks = self.data_adapter.get_stock_list(limit=200)
+                stock_pool = [{"code": s["ts_code"], "name": s["name"]} for s in all_stocks]
+                logger.info(f"股票推荐: watchlist为空，自动获取{len(stock_pool)}只股票")
+            except Exception as e:
+                logger.error(f"获取股票列表失败: {e}")
+                stock_pool = []
+
         # 生成推荐
-        scores = self.recommender.recommend_from_watchlist(self.watchlist, top_n=top_n)
+        scores = self.recommender.recommend_from_watchlist(stock_pool, top_n=top_n)
 
         # 构建报告
         report = RecommendationReport(
@@ -353,7 +379,18 @@ class TradingAgent:
         """筛选异动股"""
         print(f"\n> 异动股筛选\n{'-' * 50}")
 
-        anomalies = self.recommender.filter_anomaly_stocks(self.watchlist)
+        # 如果 watchlist 为空，自动获取股票池
+        stock_pool = self.watchlist
+        if not stock_pool:
+            try:
+                all_stocks = self.data_adapter.get_stock_list(limit=200)
+                stock_pool = [{"code": s["ts_code"], "name": s["name"]} for s in all_stocks]
+                logger.info(f"异动筛选: watchlist为空，自动获取{len(stock_pool)}只股票")
+            except Exception as e:
+                logger.error(f"获取股票列表失败: {e}")
+                stock_pool = []
+
+        anomalies = self.recommender.filter_anomaly_stocks(stock_pool)
 
         if anomalies:
             for i, score in enumerate(anomalies, 1):
