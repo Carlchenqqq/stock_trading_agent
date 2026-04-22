@@ -33,32 +33,46 @@ except ImportError:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# ==================== 修复: 东方财富TLS指纹拦截 ====================
-# Python requests 被东方财富反爬拦截，用 curl_cffi 模拟浏览器TLS指纹
+# ==================== 修复: 东方财富反爬拦截 ====================
+# Python requests/curl_cffi 均被东方财富拦截，改用 subprocess + curl（命令行curl能正常访问）
+import subprocess as _subprocess
+import json as _json
 try:
-    from curl_cffi import requests as cffi_requests
     import akshare.utils.request as _ak_request
     import akshare.utils.func as _ak_func
-    import inspect
     _orig_retry = _ak_request.request_with_retry
-    _orig_sig = inspect.signature(_orig_retry)
-    def _patched_request_with_retry(*args, **kwargs):
+    class _CurlResponse:
+        """模拟 requests.Response 对象，让 AKShare 能正常解析"""
+        def __init__(self, text, status_code=200):
+            self.text = text
+            self.content = text.encode('utf-8')
+            self.status_code = status_code
+            self.ok = 200 <= status_code < 400
+        def json(self):
+            return _json.loads(self.text)
+    def _curl_request_with_retry(*args, **kwargs):
         try:
-            session = cffi_requests.Session(impersonate="chrome")
             url = args[0] if args else kwargs.get('url', '')
-            params = kwargs.get('params')
-            headers = kwargs.get('headers')
+            params = kwargs.get('params') or {}
             timeout = kwargs.get('timeout', 15)
-            r = session.get(url, params=params, headers=headers, timeout=timeout)
-            return r
+            # 构建 curl 命令
+            curl_cmd = ['curl', '-s', '-m', str(timeout),
+                        '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        '-H', 'Referer: https://www.eastmoney.com/']
+            for k, v in params.items():
+                curl_cmd.extend(['--data-urlencode', f'{k}={v}'])
+            curl_cmd.append(url)
+            result = _subprocess.run(curl_cmd, capture_output=True, text=True, timeout=timeout + 5)
+            if result.returncode == 0 and result.stdout.strip():
+                return _CurlResponse(result.stdout)
+            raise ConnectionError(f"curl failed: {result.stderr[:200]}")
         except Exception:
             return _orig_retry(*args, **kwargs)
-    # 必须同时 patch 两个模块的引用（func.py 在 import 时创建了本地副本）
-    _ak_request.request_with_retry = _patched_request_with_retry
-    _ak_func.request_with_retry = _patched_request_with_retry
-    print("[补丁] 已启用 curl_cffi TLS指纹补丁，绕过东方财富反爬")
+    _ak_request.request_with_retry = _curl_request_with_retry
+    _ak_func.request_with_retry = _curl_request_with_retry
+    print("[补丁] 已启用 subprocess+curl 补丁，绕过东方财富反爬")
 except ImportError:
-    print("[警告] curl_cffi 未安装，使用默认 requests（可能被东方财富拦截）")
+    print("[警告] 补丁加载失败")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
