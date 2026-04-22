@@ -18,9 +18,9 @@ class AIAnalyzer:
     """AI分析引擎 - 支持GLM/Kimi"""
 
     def __init__(self):
-        self.api_key = os.environ.get("AI_API_KEY", "")
+        self.api_key = os.environ.get("AI_API_KEY", "e39dd88167644894aada6f0d39adc0af.VJ8AZYx3yOHRuYtc")
         self.api_base = os.environ.get("AI_API_BASE", "https://open.bigmodel.cn/api/paas/v4")
-        self.model = os.environ.get("AI_MODEL", "glm-4-flash")
+        self.model = os.environ.get("AI_MODEL", "glm-4.5-air")
         self._provider = self._detect_provider()
 
     def _detect_provider(self) -> str:
