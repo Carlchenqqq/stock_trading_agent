@@ -55,8 +55,8 @@ try:
             url = args[0] if args else kwargs.get('url', '')
             params = kwargs.get('params') or {}
             timeout = kwargs.get('timeout', 15)
-            # 构建 curl 命令
-            curl_cmd = ['curl', '-s', '-m', str(timeout),
+            # 构建 curl 命令（-G 表示用GET发送data-urlencode参数）
+            curl_cmd = ['curl', '-s', '-G', '-m', str(timeout),
                         '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                         '-H', 'Referer: https://www.eastmoney.com/']
             for k, v in params.items():
