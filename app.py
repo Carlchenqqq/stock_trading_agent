@@ -39,17 +39,20 @@ try:
     from curl_cffi import requests as cffi_requests
     import akshare.utils.request as _ak_request
     import akshare.utils.func as _ak_func
+    import inspect
     _orig_retry = _ak_request.request_with_retry
-    def _patched_request_with_retry(url, method="GET", params=None, data=None, headers=None, timeout=15, **kwargs):
+    _orig_sig = inspect.signature(_orig_retry)
+    def _patched_request_with_retry(*args, **kwargs):
         try:
             session = cffi_requests.Session(impersonate="chrome")
-            if method.upper() == "GET":
-                r = session.get(url, params=params, headers=headers, timeout=timeout, **kwargs)
-            else:
-                r = session.post(url, data=data, headers=headers, timeout=timeout, **kwargs)
+            url = args[0] if args else kwargs.get('url', '')
+            params = kwargs.get('params')
+            headers = kwargs.get('headers')
+            timeout = kwargs.get('timeout', 15)
+            r = session.get(url, params=params, headers=headers, timeout=timeout)
             return r
         except Exception:
-            return _orig_retry(url, method=method, params=params, data=data, headers=headers, timeout=timeout, **kwargs)
+            return _orig_retry(*args, **kwargs)
     # 必须同时 patch 两个模块的引用（func.py 在 import 时创建了本地副本）
     _ak_request.request_with_retry = _patched_request_with_retry
     _ak_func.request_with_retry = _patched_request_with_retry
