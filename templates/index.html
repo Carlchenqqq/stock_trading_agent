@@ -547,18 +547,30 @@ const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const API = '';
 
-async function fetchJSON(url) {
-  try {
-    const resp = await fetch(API + url);
-    const text = await resp.text();
+async function fetchJSON(url, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
     try {
-      return JSON.parse(text);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const resp = await fetch(API + url, { signal: controller.signal });
+      clearTimeout(timeout);
+      const text = await resp.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error('JSON解析失败:', text.slice(0, 200));
+        return { success: false, error: '服务端返回了非JSON数据，请稍后重试。' };
+      }
     } catch (e) {
-      console.error('JSON解析失败:', text.slice(0, 200));
-      return { success: false, error: '服务端返回了非JSON数据，可能是网络或代理问题。请在本地网络环境运行。' };
+      if (i < retries) {
+        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+        continue;
+      }
+      if (e.name === 'AbortError') {
+        return { success: false, error: '请求超时，服务器正在加载数据，请稍后刷新页面重试。' };
+      }
+      return { success: false, error: '网络请求失败: ' + e.message };
     }
-  } catch (e) {
-    return { success: false, error: '网络请求失败: ' + e.message };
   }
 }
 

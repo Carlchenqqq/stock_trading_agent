@@ -8,21 +8,22 @@
 
 import os
 import sys
+import json
+import time
 import logging
+import threading
 from datetime import datetime
 from flask import Flask, jsonify, render_template
 import traceback
 
-# 加载 .env 文件（PythonAnywhere部署时使用）
+# 加载 .env 文件
 try:
     from dotenv import load_dotenv
-    # 从 app.py 所在目录加载 .env
     _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
     load_dotenv(_env_path)
 except ImportError:
     pass
 
-# 将项目根目录加入路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -30,7 +31,28 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# 延迟初始化（避免导入时触发akshare）
+# ==================== 数据缓存 ====================
+_cache = {}
+_cache_lock = threading.Lock()
+CACHE_TTL = 300  # 缓存5分钟
+
+
+def get_cached(key):
+    """获取缓存数据"""
+    with _cache_lock:
+        item = _cache.get(key)
+        if item and (time.time() - item['time']) < CACHE_TTL:
+            return item['data']
+    return None
+
+
+def set_cached(key, data):
+    """设置缓存数据"""
+    with _cache_lock:
+        _cache[key] = {'data': data, 'time': time.time()}
+
+
+# ==================== 延迟初始化 ====================
 _agent = None
 _ai_analyzer = None
 
@@ -40,7 +62,6 @@ def get_agent():
     if _agent is None:
         from hybrid_agent import TradingAgent
         _agent = TradingAgent()
-        # 添加默认自选股
         watchlist = [
             ("000001.SZ", "平安银行"), ("600036.SH", "招商银行"), ("601318.SH", "中国平安"),
             ("000002.SZ", "万科A"), ("600519.SH", "贵州茅台"), ("000858.SZ", "五粮液"),
@@ -73,10 +94,14 @@ def index():
 
 @app.route('/api/market')
 def api_market():
-    """市场情绪数据"""
+    """市场情绪数据（带缓存）"""
     try:
+        cached = get_cached('market')
+        if cached:
+            return jsonify({"success": True, "data": cached, "cached": True})
         agent = get_agent()
         sentiment = agent.analyze_market_sentiment()
+        set_cached('market', sentiment)
         return jsonify({"success": True, "data": sentiment})
     except Exception as e:
         logger.error(f"市场数据获取失败: {e}")
@@ -85,8 +110,11 @@ def api_market():
 
 @app.route('/api/watchlist')
 def api_watchlist():
-    """自选股分析"""
+    """自选股分析（带缓存）"""
     try:
+        cached = get_cached('watchlist')
+        if cached:
+            return jsonify({"success": True, "data": cached, "cached": True})
         agent = get_agent()
         results = []
         for stock in agent.watchlist:
@@ -94,6 +122,7 @@ def api_watchlist():
             info["code"] = stock["code"]
             info["name"] = stock["name"]
             results.append(info)
+        set_cached('watchlist', results)
         return jsonify({"success": True, "data": results})
     except Exception as e:
         logger.error(f"自选股分析失败: {e}")
@@ -102,10 +131,14 @@ def api_watchlist():
 
 @app.route('/api/strategy')
 def api_strategy():
-    """策略分析"""
+    """策略分析（带缓存）"""
     try:
+        cached = get_cached('strategy')
+        if cached:
+            return jsonify({"success": True, "data": cached, "cached": True})
         agent = get_agent()
         results = agent.run_strategy_analysis()
+        set_cached('strategy', results)
         return jsonify({"success": True, "data": results})
     except Exception as e:
         logger.error(f"策略分析失败: {e}")
@@ -114,36 +147,30 @@ def api_strategy():
 
 @app.route('/api/recommend')
 def api_recommend():
-    """股票推荐"""
+    """股票推荐（带缓存）"""
     try:
+        cached = get_cached('recommend')
+        if cached:
+            return jsonify({"success": True, "data": cached, "cached": True})
         agent = get_agent()
         report = agent.run_stock_recommendation(top_n=10)
         stocks = []
         for s in report.recommendations:
             stocks.append({
-                "ts_code": s.ts_code,
-                "name": s.name,
-                "total_score": s.total_score,
-                "trend_score": s.trend_score,
-                "momentum_score": s.momentum_score,
-                "volatility_score": s.volatility_score,
-                "volume_score": s.volume_score,
-                "pattern_score": s.pattern_score,
-                "current_price": s.current_price,
-                "change_pct": s.change_pct,
-                "recommendation": s.recommendation,
-                "risk_level": s.risk_level,
+                "ts_code": s.ts_code, "name": s.name,
+                "total_score": s.total_score, "trend_score": s.trend_score,
+                "momentum_score": s.momentum_score, "volatility_score": s.volatility_score,
+                "volume_score": s.volume_score, "pattern_score": s.pattern_score,
+                "current_price": s.current_price, "change_pct": s.change_pct,
+                "recommendation": s.recommendation, "risk_level": s.risk_level,
                 "signals": s.signals,
             })
-        return jsonify({
-            "success": True,
-            "data": {
-                "date": report.date,
-                "market_sentiment": report.market_sentiment,
-                "warnings": report.warnings,
-                "recommendations": stocks,
-            }
-        })
+        data = {
+            "date": report.date, "market_sentiment": report.market_sentiment,
+            "warnings": report.warnings, "recommendations": stocks,
+        }
+        set_cached('recommend', data)
+        return jsonify({"success": True, "data": data})
     except Exception as e:
         logger.error(f"推荐分析失败: {e}")
         return jsonify({"success": False, "error": str(e)})
@@ -151,19 +178,21 @@ def api_recommend():
 
 @app.route('/api/anomaly')
 def api_anomaly():
-    """异动股筛选"""
+    """异动股筛选（带缓存）"""
     try:
+        cached = get_cached('anomaly')
+        if cached:
+            return jsonify({"success": True, "data": cached, "cached": True})
         agent = get_agent()
         anomalies = agent.filter_anomaly_stocks()
         stocks = []
         for s in anomalies:
             stocks.append({
-                "ts_code": s.ts_code,
-                "name": s.name,
-                "total_score": s.total_score,
-                "change_pct": s.change_pct,
+                "ts_code": s.ts_code, "name": s.name,
+                "total_score": s.total_score, "change_pct": s.change_pct,
                 "signals": s.signals,
             })
+        set_cached('anomaly', stocks)
         return jsonify({"success": True, "data": stocks})
     except Exception as e:
         logger.error(f"异动筛选失败: {e}")
@@ -172,13 +201,11 @@ def api_anomaly():
 
 @app.route('/api/rules')
 def api_rules():
-    """交易规则"""
+    """交易规则（静态数据，长缓存）"""
     try:
         from trading_rules import TradingRules
         rules = {
-            "min_lot_size": 100,
-            "max_single_order": 1000000,
-            "min_price_unit": 0.01,
+            "min_lot_size": 100, "max_single_order": 1000000, "min_price_unit": 0.01,
             "boards": {
                 "main": {"name": "主板", "limit_pct": 10.0},
                 "kcb": {"name": "科创板", "limit_pct": 20.0},
@@ -186,18 +213,9 @@ def api_rules():
                 "st": {"name": "ST股", "limit_pct": 5.0},
                 "bse": {"name": "北交所", "limit_pct": 30.0},
             },
-            "trading_time": {
-                "auction": "9:15-9:25",
-                "morning": "9:30-11:30",
-                "afternoon": "13:00-15:00",
-            },
-            "fees": {
-                "commission": "万2.5（最低5元）",
-                "stamp_duty": "千1（仅卖出）",
-                "transfer_fee": "万0.1（买卖均收）",
-            },
-            "t_plus_1": True,
-            "limit_price_examples": {},
+            "trading_time": {"auction": "9:15-9:25", "morning": "9:30-11:30", "afternoon": "13:00-15:00"},
+            "fees": {"commission": "万2.5（最低5元）", "stamp_duty": "千1（仅卖出）", "transfer_fee": "万0.1（买卖均收）"},
+            "t_plus_1": True, "limit_price_examples": {},
         }
         for board in ["main", "kcb", "cyb", "st"]:
             up, down = TradingRules.calculate_limit_price(10.0, board)
@@ -209,7 +227,6 @@ def api_rules():
 
 @app.route('/api/ai/status')
 def api_ai_status():
-    """AI分析器状态"""
     try:
         ai = get_ai_analyzer()
         return jsonify({"success": True, "data": ai.get_status()})
@@ -219,7 +236,6 @@ def api_ai_status():
 
 @app.route('/api/ai/market')
 def api_ai_market():
-    """AI市场分析"""
     try:
         ai = get_ai_analyzer()
         agent = get_agent()
@@ -232,7 +248,6 @@ def api_ai_market():
 
 @app.route('/api/ai/stock/<ts_code>')
 def api_ai_stock(ts_code):
-    """AI个股分析"""
     try:
         ai = get_ai_analyzer()
         agent = get_agent()
@@ -245,7 +260,6 @@ def api_ai_stock(ts_code):
 
 @app.route('/api/ai/strategy')
 def api_ai_strategy():
-    """AI策略分析"""
     try:
         ai = get_ai_analyzer()
         agent = get_agent()
@@ -258,7 +272,6 @@ def api_ai_strategy():
 
 @app.route('/api/ai/recommend')
 def api_ai_recommend():
-    """AI推荐分析"""
     try:
         ai = get_ai_analyzer()
         agent = get_agent()
@@ -273,7 +286,7 @@ def api_ai_recommend():
         return jsonify({"success": False, "error": str(e)})
 
 
-# 全局异常处理：确保所有API始终返回JSON
+# 全局异常处理
 @app.errorhandler(Exception)
 def handle_exception(e):
     logger.error(f"未捕获异常: {e}\n{traceback.format_exc()}")
