@@ -1078,6 +1078,7 @@ function riskTag(level) {
 }
 
 // ========== Tab Navigation ==========
+const _tabLoaded = {};
 $$('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     // Admin tab check
@@ -1086,13 +1087,21 @@ $$('.nav-tab').forEach(tab => {
     tab.classList.add('active');
     $$('.tab-content').forEach(c => c.classList.remove('active'));
     $(`#tab-${tab.dataset.tab}`).classList.add('active');
-    // Lazy load
+    // Lazy load (only first time, except market which always refreshes)
     const loaders = {
       market: loadMarket, watchlist: loadWatchlist, industry: loadIndustry,
       recommend: loadRecommend, strategy: loadStrategy, anomaly: loadAnomaly,
       rules: loadRules, ai: loadAIStatus, admin: loadAdminData,
     };
-    if (loaders[tab.dataset.tab]) loaders[tab.dataset.tab]();
+    const tabKey = tab.dataset.tab;
+    if (tabKey === 'market') {
+      // 市场概览每次都刷新
+      if (loaders[tabKey]) loaders[tabKey]();
+    } else if (!_tabLoaded[tabKey]) {
+      // 其他tab只在首次加载
+      _tabLoaded[tabKey] = true;
+      if (loaders[tabKey]) loaders[tabKey]();
+    }
   });
 });
 
