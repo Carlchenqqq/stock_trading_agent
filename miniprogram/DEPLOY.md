@@ -22,23 +22,37 @@
 2. 点击「Sign up」注册免费账号（免费版支持一个 Web 应用）
 3. 通过邮箱验证完成注册
 
-### 1.2 本地项目准备
+### 1.2 本地项目结构
 
-确保你的 Flask 后端项目结构如下：
+项目结构如下（`app.py` 在根目录下）：
 
 ```
 stock_trading_agent/
-├── backend/
-│   ├── app.py          # Flask 主应用
-│   ├── requirements.txt
-│   └── ...
-├── miniprogram/
+├── app.py                # Flask 主应用（Web仪表盘 + API后端）
+├── models.py             # 统一数据模型
+├── akshare_adapter.py    # AKShare数据适配器
+├── hybrid_agent.py       # 交易Agent核心逻辑
+├── trading_rules.py      # A股交易规则引擎
+├── stock_recommender.py  # 股票推荐引擎
+├── ai_analyzer.py        # AI分析模块
+├── trading_strategies.py # 交易策略
+├── market_analyzer.py    # 市场分析
+├── agent.py              # 交易费用计算
+├── data_adapter.py       # 数据适配器基类
+├── real_data_agent.py    # 真实数据Agent
+├── main.py               # 命令行入口
+├── requirements.txt      # Python依赖
+├── templates/
+│   └── index.html        # Web仪表盘前端页面
+├── miniprogram/          # 微信小程序前端
 │   ├── app.js
 │   ├── app.json
+│   ├── app.wxss
 │   ├── pages/
 │   ├── images/
-│   └── ...
-└── ...
+│   ├── utils/
+│   └── DEPLOY.md
+└── .gitignore
 ```
 
 ---
@@ -52,15 +66,13 @@ stock_trading_agent/
 在 PythonAnywhere 的 Bash Console 中执行：
 
 ```bash
-# 先在 GitHub 上创建仓库并推送代码
-# 然后在 PythonAnywhere 上克隆
 cd ~
-git clone https://github.com/你的用户名/stock_trading_agent.git
+git clone https://github.com/Carlchenqqq/stock_trading_agent.git
 ```
 
 **方式二：手动上传**
 
-1. 将后端文件打包为 zip
+1. 将项目文件打包为 zip
 2. 在 PythonAnywhere 页面点击「Files」标签
 3. 上传 zip 文件并解压
 
@@ -70,7 +82,7 @@ git clone https://github.com/你的用户名/stock_trading_agent.git
 
 ```bash
 # 创建虚拟环境
-cd ~/stock_trading_agent/backend
+cd ~/stock_trading_agent
 python3 -m venv venv
 source venv/bin/activate
 
@@ -80,20 +92,20 @@ pip install -r requirements.txt
 
 > **注意**：PythonAnywhere 免费版预装的包有限，如果安装超时，可以分批安装核心依赖：
 > ```bash
-> pip install flask flask-cors requests
+> pip install flask requests akshare
 > ```
 
 ### 2.3 创建 WSGI 文件
 
-在 PythonAnywhere 的「Files」页面，找到你的工作目录，创建 `wsgi.py` 文件：
+在项目根目录下创建 `wsgi.py` 文件：
 
 ```python
-# ~/stock_trading_agent/backend/wsgi.py
+# ~/stock_trading_agent/wsgi.py
 import sys
 import os
 
 # 添加项目路径
-project_home = '/home/你的用户名/stock_trading_agent/backend'
+project_home = '/home/你的用户名/stock_trading_agent'
 if project_home not in sys.path:
     sys.path.insert(0, project_home)
 
@@ -115,13 +127,17 @@ from app import app as application
 3. 选择「Python 3.10」（或最新可用版本）
 4. 在「WSGI configuration file」中填入：
    ```
-   /home/你的用户名/stock_trading_agent/backend/wsgi.py
+   /home/你的用户名/stock_trading_agent/wsgi.py
    ```
 5. 在「Virtualenv」中填入：
    ```
-   /home/你的用户名/stock_trading_agent/backend/venv
+   /home/你的用户名/stock_trading_agent/venv
    ```
-6. 点击「Save」保存
+6. 在「Code directory」中填入：
+   ```
+   /home/你的用户名/stock_trading_agent
+   ```
+7. 点击「Save」保存
 
 ### 2.5 验证部署
 
@@ -131,7 +147,7 @@ from app import app as application
 https://你的用户名.pythonanywhere.com
 ```
 
-如果页面正常显示 API 响应，说明部署成功。
+如果页面正常显示 Web 仪表盘，说明部署成功。
 
 ### 2.6 后续更新代码
 
@@ -195,11 +211,10 @@ App({
 在 PythonAnywhere 的 Bash Console 中执行：
 
 ```bash
-# 设置智谱 AI (GLM) API 密钥
-echo 'export GLM_API_KEY="你的智谱AI密钥"' >> ~/.bashrc
-
-# 设置 Kimi (Moonshot) API 密钥（可选）
-echo 'export KIMI_API_KEY="你的Kimi密钥"' >> ~/.bashrc
+# 设置 AI API 密钥（三选一，或都设置）
+echo 'export AI_API_KEY="你的API密钥"' >> ~/.bashrc
+echo 'export AI_API_BASE="https://open.bigmodel.cn/api/paas/v4"' >> ~/.bashrc
+echo 'export AI_MODEL="glm-4-flash"' >> ~/.bashrc
 
 # 使配置生效
 source ~/.bashrc
@@ -207,54 +222,30 @@ source ~/.bashrc
 
 ### 4.2 在 PythonAnywhere Web 应用中配置环境变量
 
-由于 Web 应用不会自动加载 `.bashrc`，需要在 WSGI 文件或应用代码中手动加载：
+由于 Web 应用不会自动加载 `.bashrc`，推荐使用 `.env` 文件：
 
-**方式一：在 wsgi.py 中加载（推荐）**
-
-```python
-# 在 wsgi.py 文件顶部添加
-import os
-from dotenv import load_dotenv
-
-# 加载 .env 文件
-env_path = os.path.join(project_home, '.env')
-if os.path.exists(env_path):
-    load_dotenv(env_path)
-```
-
-**方式二：通过 PythonAnywhere 的 Virtualenv 配置**
-
-1. 在「Web」标签页找到「Virtualenv」部分
-2. 点击虚拟环境路径旁的「Enter virtualenv」链接
-3. 在打开的 Bash 中设置环境变量：
-   ```bash
-   echo 'export GLM_API_KEY="你的智谱AI密钥"' > venv/bin/activate.d/env_vars.sh
-   echo 'export KIMI_API_KEY="你的Kimi密钥"' >> venv/bin/activate.d/env_vars.sh
-   mkdir -p venv/bin/activate.d
+1. 在项目根目录 `stock_trading_agent/` 下创建 `.env` 文件：
    ```
-
-**方式三：使用 .env 文件**
-
-1. 在 `backend/` 目录下创建 `.env` 文件：
-   ```
-   GLM_API_KEY=你的智谱AI密钥
-   KIMI_API_KEY=你的Kimi密钥
+   AI_API_KEY=你的API密钥
+   AI_API_BASE=https://open.bigmodel.cn/api/paas/v4
+   AI_MODEL=glm-4-flash
    ```
 2. 在 `requirements.txt` 中添加 `python-dotenv`
-3. 在应用入口加载环境变量：
+3. 在 `app.py` 入口处加载环境变量：
    ```python
    from dotenv import load_dotenv
    load_dotenv()
    ```
 
-> **安全提示**：不要将 `.env` 文件提交到 Git 仓库。确保 `.gitignore` 中包含 `.env`。
+> **安全提示**：不要将 `.env` 文件提交到 Git 仓库。`.gitignore` 中已包含 `.env`。
 
 ### 4.3 获取 API 密钥
 
-| 服务商 | 注册地址 | 用途 |
-|--------|---------|------|
-| 智谱 AI (GLM) | [https://open.bigmodel.cn](https://open.bigmodel.cn) | 主力对话模型 |
-| Kimi (Moonshot) | [https://platform.moonshot.cn](https://platform.moonshot.cn) | 备用对话模型 |
+| 服务商 | 注册地址 | API Base | 模型 |
+|--------|---------|----------|------|
+| 智谱 AI (GLM) | [https://open.bigmodel.cn](https://open.bigmodel.cn) | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash`（免费） |
+| Kimi (Moonshot) | [https://platform.moonshot.cn](https://platform.moonshot.cn) | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
+| DeepSeek | [https://platform.deepseek.com](https://platform.deepseek.com) | `https://api.deepseek.com/v1` | `deepseek-chat` |
 
 注册后在控制台创建 API Key 即可使用。
 
@@ -274,13 +265,14 @@ if os.path.exists(env_path):
 
 ### Q2: 部署后页面报 502 错误？
 
-1. 检查 WSGI 文件路径是否正确
-2. 检查虚拟环境路径是否正确
-3. 查看 Error Log（在「Web」页面底部）：
+1. 检查 WSGI 文件路径是否正确（`/home/用户名/stock_trading_agent/wsgi.py`）
+2. 检查虚拟环境路径是否正确（`/home/用户名/stock_trading_agent/venv`）
+3. 检查 Code directory 是否正确（`/home/用户名/stock_trading_agent`）
+4. 查看 Error Log（在「Web」页面底部）：
    ```
    /home/你的用户名/logs/user.your_username.pythonanywhere.com.error.log
    ```
-4. 确保 Flask 应用对象命名为 `application`
+5. 确保 Flask 应用对象命名为 `application`
 
 ### Q3: 小程序请求失败？
 
@@ -303,7 +295,7 @@ tail -f ~/logs/user.你的用户名.pythonanywhere.com.error.log
 ### Q5: 如何更新依赖？
 
 ```bash
-cd ~/stock_trading_agent/backend
+cd ~/stock_trading_agent
 source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -317,23 +309,30 @@ pip install -r requirements.txt
 ```bash
 # 1. 克隆代码
 cd ~
-git clone https://github.com/你的用户名/stock_trading_agent.git
+git clone https://github.com/Carlchenqqq/stock_trading_agent.git
 
 # 2. 创建虚拟环境并安装依赖
-cd ~/stock_trading_agent/backend
+cd ~/stock_trading_agent
 python3 -m venv venv
 source venv/bin/activate
-pip install flask flask-cors requests python-dotenv
+pip install flask requests akshare python-dotenv
 
 # 3. 配置环境变量
-echo 'export GLM_API_KEY="你的密钥"' >> ~/.bashrc
+echo 'export AI_API_KEY="你的密钥"' >> ~/.bashrc
+echo 'export AI_API_BASE="https://open.bigmodel.cn/api/paas/v4"' >> ~/.bashrc
+echo 'export AI_MODEL="glm-4-flash"' >> ~/.bashrc
 source ~/.bashrc
 
-# 4. 创建 .env 文件
-cat > ~/stock_trading_agent/backend/.env << 'EOF'
-GLM_API_KEY=你的智谱AI密钥
-KIMI_API_KEY=你的Kimi密钥
+# 4. 创建 .env 文件（Web应用会读取此文件）
+cat > ~/stock_trading_agent/.env << 'EOF'
+AI_API_KEY=你的API密钥
+AI_API_BASE=https://open.bigmodel.cn/api/paas/v4
+AI_MODEL=glm-4-flash
 EOF
 
-# 5. 在 PythonAnywhere Web 页面配置 WSGI 路径后点击 Reload
+# 5. 在 PythonAnywhere Web 页面配置：
+#    WSGI: /home/你的用户名/stock_trading_agent/wsgi.py
+#    Virtualenv: /home/你的用户名/stock_trading_agent/venv
+#    Code: /home/你的用户名/stock_trading_agent
+#    然后点击 Reload
 ```
