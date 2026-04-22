@@ -372,6 +372,7 @@ tr:hover td { background: rgba(0,0,0,0.02); }
   <button class="nav-tab" data-tab="anomaly"><i class="fas fa-bolt"></i> 异动筛选</button>
   <button class="nav-tab" data-tab="rules"><i class="fas fa-gavel"></i> 交易规则</button>
   <button class="nav-tab" data-tab="ai"><i class="fas fa-robot"></i> AI分析</button>
+  <button class="nav-tab" data-tab="guide"><i class="fas fa-book"></i> 使用说明</button>
 </nav>
 
 <!-- ========== Main Content ========== -->
@@ -535,6 +536,68 @@ tr:hover td { background: rgba(0,0,0,0.02); }
           export AI_API_BASE="https://open.bigmodel.cn/api/paas/v4"<br>
           export AI_MODEL="glm-4-flash"
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 使用说明 -->
+  <div class="tab-content" id="tab-guide">
+    <div class="card" style="max-width:800px;margin:0 auto;">
+      <div class="card-header"><h3><i class="fas fa-book"></i> 使用说明</h3></div>
+      <div style="padding:1.5rem;line-height:1.8;color:var(--text-secondary);">
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-chart-line" style="color:var(--accent-blue);"></i> 市场概览</h4>
+        <p>展示A股三大指数（上证指数、深证成指、创业板指）的实时行情，以及当日涨停/跌停家数和全市场涨跌分布。点击「刷新」按钮可手动更新数据。数据每5分钟自动缓存。</p>
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-eye" style="color:var(--accent-blue);"></i> 自选股</h4>
+        <p>默认包含16只热门A股的实时行情数据。每只股票显示当前价格、涨跌幅、成交量和成交额。点击行末的 <i class="fas fa-robot"></i> 按钮可获取该股票的AI分析报告。</p>
+        <p><b>自定义自选股：</b>修改后端代码 <code>app.py</code> 中的 <code>watchlist</code> 列表，添加或删除股票代码和名称，重启服务即可。</p>
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-star" style="color:var(--accent-blue);"></i> 股票推荐</h4>
+        <p>基于多维度量化评分模型，从全市场5500+只股票中筛选Top 10推荐。评分维度包括：</p>
+        <ul style="padding-left:1.5rem;margin:0.5rem 0;">
+          <li><b>趋势得分</b> — 股价相对20日均线的位置</li>
+          <li><b>动量得分</b> — 近5日涨跌幅度</li>
+          <li><b>波动率得分</b> — 近期价格波动情况</li>
+          <li><b>量能得分</b> — 成交量相对均量的比值</li>
+          <li><b>形态得分</b> — 连涨/连跌天数等形态信号</li>
+        </ul>
+        <p>排名 #1/#2/#3 分别以金/银/铜色标识。点击「分析」按钮可获取AI对推荐列表的解读。</p>
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-chess" style="color:var(--accent-blue);"></i> 策略分析</h4>
+        <p>提供4种量化策略的信号筛选：</p>
+        <ul style="padding-left:1.5rem;margin:0.5rem 0;">
+          <li><b>动量策略 🚀</b> — 筛选5日涨幅超过5%的强势股</li>
+          <li><b>均值回归 ↕️</b> — 筛选偏离20日均线超过8%的股票（可能回调）</li>
+          <li><b>趋势跟踪 📈</b> — 筛选站上20日均线且量能放大的股票</li>
+          <li><b>波动率突破 ⚡</b> — 筛选近期波动率突然放大的股票</li>
+        </ul>
+        <p>每张卡片可展开查看具体信号列表，包含操作建议（买入/卖出/观望）和置信度。</p>
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-bolt" style="color:var(--accent-blue);"></i> 异动筛选</h4>
+        <p>自动筛选当日出现异动的股票，包括大幅上涨、大幅下跌、放量等异常信号。</p>
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-gavel" style="color:var(--accent-blue);"></i> 交易规则</h4>
+        <p>A股交易基础规则速查，包括各板块涨跌停限制、交易时间、费用标准、T+1规则等。</p>
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-robot" style="color:var(--accent-blue);"></i> AI分析</h4>
+        <p>基于大语言模型（GLM）的智能分析功能，支持4种分析类型：</p>
+        <ul style="padding-left:1.5rem;margin:0.5rem 0;">
+          <li><b>市场分析</b> — 综合三大指数、涨跌停数据，给出市场整体研判</li>
+          <li><b>策略分析</b> — 解读4种策略信号，给出操作建议</li>
+          <li><b>推荐分析</b> — 对Top推荐股票进行深度解读</li>
+          <li><b>个股分析</b> — 在自选股页面点击 <i class="fas fa-robot"></i> 按钮触发</li>
+        </ul>
+        <p>AI分析需要配置API密钥。当前使用智谱GLM-4.5-air模型。</p>
+
+        <h4 style="color:var(--text-primary);margin:1.5rem 0 0.8rem;"><i class="fas fa-info-circle" style="color:var(--accent-amber);"></i> 注意事项</h4>
+        <ul style="padding-left:1.5rem;margin:0.5rem 0;">
+          <li>数据来源为AKShare（东方财富），仅供参考，不构成投资建议</li>
+          <li>市场数据缓存5分钟，不会实时刷新</li>
+          <li>AI分析结果由大语言模型生成，请结合自身判断使用</li>
+          <li>交易时间段（9:30-15:00）数据更新更及时，非交易时段显示上一交易日数据</li>
+        </ul>
+
       </div>
     </div>
   </div>
