@@ -33,6 +33,27 @@ except ImportError:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# ==================== 修复: 东方财富TLS指纹拦截 ====================
+# Python requests 被东方财富反爬拦截，用 curl_cffi 模拟浏览器TLS指纹
+try:
+    from curl_cffi import requests as cffi_requests
+    import akshare.utils.request as _ak_request
+    _orig_retry = _ak_request.request_with_retry
+    def _patched_request_with_retry(url, method="GET", params=None, data=None, headers=None, timeout=15, **kwargs):
+        try:
+            session = cffi_requests.Session(impersonate="chrome")
+            if method.upper() == "GET":
+                r = session.get(url, params=params, headers=headers, timeout=timeout, **kwargs)
+            else:
+                r = session.post(url, data=data, headers=headers, timeout=timeout, **kwargs)
+            return r
+        except Exception:
+            return _orig_retry(url, method=method, params=params, data=data, headers=headers, timeout=timeout, **kwargs)
+    _ak_request.request_with_retry = _patched_request_with_retry
+    logger.info("已启用 curl_cffi TLS指纹补丁，绕过东方财富反爬")
+except ImportError:
+    logger.warning("curl_cffi 未安装，使用默认 requests（可能被东方财富拦截）")
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
