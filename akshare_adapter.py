@@ -151,18 +151,25 @@ class AKShareAdapter:
             (涨停家数, 跌停家数)
         """
         try:
-            # 获取当日涨停数据
-            df_limit_up = ak.stock_zt_pool_em(date=datetime.now().strftime("%Y%m%d"))
-            limit_up = len(df_limit_up)
+            # 获取当日涨停数据（东方财富接口，无新浪替代，失败时返回 0,0）
+            try:
+                df_limit_up = ak.stock_zt_pool_em(date=datetime.now().strftime("%Y%m%d"))
+                limit_up = len(df_limit_up)
+            except Exception as e:
+                logger.warning(f"获取涨停数据失败（东方财富接口不可用）: {e}")
+                limit_up = 0
 
             # 获取当日跌停数据
-            df_limit_down = ak.stock_zt_pool_dtgc_em(date=datetime.now().strftime("%Y%m%d"))
-            limit_down = len(df_limit_down)
+            try:
+                df_limit_down = ak.stock_zt_pool_dtgc_em(date=datetime.now().strftime("%Y%m%d"))
+                limit_down = len(df_limit_down)
+            except Exception as e:
+                logger.warning(f"获取跌停数据失败（东方财富接口不可用）: {e}")
+                limit_down = 0
 
-            return limit_up, limit_down
+            if limit_up > 0 or limit_down > 0:
+                return limit_up, limit_down
 
-        except Exception as e:
-            logger.error(f"获取涨跌停数据失败: {e}")
             # 备用方案：从涨跌分布估算
             try:
                 df = ak.stock_zs_pg(symbol="全部股票")
@@ -172,12 +179,23 @@ class AKShareAdapter:
             except Exception:
                 return 0, 0
 
+        except Exception as e:
+            logger.error(f"获取涨跌停数据失败: {e}")
+            return 0, 0
+
     def get_index_daily(self, ts_code: str = "000001.SH", limit: int = 30) -> List[dict]:
         """
         获取指数日线数据
 
-        优先使用 ak.index_zh_a_hist，失败时降级到新浪实时接口。
+        优先使用 ak.stock_zh_index_daily_sina（新浪数据源），失败时降级到东方财富接口。
         """
+        # 先尝试新浪数据源（主路径）
+        result = self._get_index_daily_sina_ak(ts_code, limit)
+        if result:
+            return result
+
+        # 降级：使用东方财富接口
+        logger.warning("stock_zh_index_daily_sina 失败，尝试东方财富接口")
         try:
             # 中文列名映射为英文
             COLUMN_MAP = {
@@ -216,9 +234,58 @@ class AKShareAdapter:
             return result
 
         except Exception as e:
-            logger.warning(f"ak.index_zh_a_hist 失败，尝试新浪接口: {e}")
-            # 降级：使用新浪实时接口获取当日指数数据
-            return self._get_index_daily_sina(ts_code, limit)
+            logger.error(f"东方财富指数接口也失败: {e}")
+            return []
+
+    def _get_index_daily_sina_ak(self, ts_code: str, limit: int = 30) -> List[dict]:
+        """通过 ak.stock_zh_index_daily_sina 获取指数日线数据（新浪数据源，主路径）"""
+        try:
+            # 新浪指数代码映射
+            sina_map = {
+                "000001.SH": "sh000001",
+                "399001.SZ": "sz399001",
+                "399006.SZ": "sz399006",
+                "000001": "sh000001",
+                "399001": "sz399001",
+                "399006": "sz399006",
+            }
+            sina_sym = sina_map.get(ts_code, "")
+            if not sina_sym:
+                return []
+
+            df = ak.stock_zh_index_daily_sina(symbol=sina_sym)
+
+            if df.empty:
+                return []
+
+            # stock_zh_index_daily_sina 返回列: date, open, high, low, close, volume
+            df = df.tail(limit).reset_index(drop=True)
+
+            result = []
+            for _, row in df.iterrows():
+                close = float(row['close'])
+                open_price = float(row['open'])
+                change = close - open_price  # 简单估算涨跌额
+                pct_chg = (change / open_price * 100) if open_price else 0
+
+                result.append({
+                    'ts_code': ts_code,
+                    'trade_date': str(row['date']).replace('-', ''),
+                    'open': open_price,
+                    'high': float(row['high']),
+                    'low': float(row['low']),
+                    'close': close,
+                    'change': change,
+                    'pct_chg': pct_chg,
+                    'vol': float(row['volume']),
+                    'amount': 0,  # 新浪接口不直接提供成交额
+                })
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"ak.stock_zh_index_daily_sina 失败: {e}")
+            return []
 
     def _get_index_daily_sina(self, ts_code: str, limit: int = 1) -> List[dict]:
         """通过新浪财经接口获取指数数据（降级方案）"""
@@ -289,8 +356,8 @@ class AKShareAdapter:
         计算市场情绪
         """
         try:
-            # 使用 stock_zh_a_spot_em 获取全市场实时行情（替代已废弃的 stock_zs_pg）
-            df = ak.stock_zh_a_spot_em()
+            # 使用 stock_zh_a_spot 获取全市场实时行情（新浪数据源）
+            df = ak.stock_zh_a_spot()
 
             up_count = len(df[df['涨跌幅'] > 0])
             down_count = len(df[df['涨跌幅'] < 0])
@@ -393,7 +460,7 @@ class AKShareAdapter:
 
     def get_moneyflow_hsgt(self, limit: int = 5) -> List[dict]:
         """
-        获取沪深港通资金流向
+        获取沪深港通资金流向（东方财富接口，无新浪替代，失败时返回空列表）
         """
         try:
             df = ak.stock_hsgt_hist_em(symbol="北上资金")
@@ -413,7 +480,7 @@ class AKShareAdapter:
             return result
 
         except Exception as e:
-            logger.error(f"获取资金流向失败: {e}")
+            logger.warning(f"获取资金流向失败（东方财富接口不可用）: {e}")
             return []
 
 
